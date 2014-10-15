@@ -20,22 +20,28 @@
 #ifndef COCAINE_ELLIPTICS_SERVICE_HPP
 #define COCAINE_ELLIPTICS_SERVICE_HPP
 
-#include <cocaine/services/elliptics_storage.hpp>
 #include <cocaine/api/storage.hpp>
 #include <cocaine/api/service.hpp>
-#include <cocaine/messages.hpp>
-#include <cocaine/rpc/slots/deferred.hpp>
+#include <cocaine/rpc/dispatch.hpp>
+
+#include "cocaine/services/elliptics_storage.hpp"
+
 #include "storage.hpp"
 
 namespace cocaine {
 
-class elliptics_service_t : public api::service_t
+class elliptics_service_t : public api::service_t, public dispatch<io::elliptics_tag>
 {
 	public:
 		elliptics_service_t(context_t &context,
-			io::reactor_t &reactor,
+			boost::asio::io_service &reactor,
 			const std::string &name,
-			const Json::Value &args);
+			const dynamic_t &args);
+
+		auto
+		prototype() const -> const io::basic_dispatch_t& {
+			return *this;
+		}
 
 		deferred<std::string> read(const std::string &collection, const std::string &key);
 		deferred<void> write(const std::string &collection, const std::string &key, const std::string &blob, const std::vector<std::string> &tags);

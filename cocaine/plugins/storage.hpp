@@ -23,7 +23,7 @@
 
 #include <cocaine/api/storage.hpp>
 #include <cocaine/api/service.hpp>
-#include <cocaine/rpc/slots/deferred.hpp>
+#include <cocaine/rpc/dispatch.hpp>
 
 #include "elliptics/cppdef.h"
 
@@ -42,7 +42,7 @@ class log_adapter_impl_t : public blackhole::base_frontend_t
 	public:
 		log_adapter_impl_t(const std::shared_ptr<logging::log_t> &log);
 
-		virtual void handle(const blackhole::log::record_t &record);
+		virtual void handle(const blackhole::record_t &record);
 
 	private:
 		std::shared_ptr<logging::log_t> m_log;
@@ -64,7 +64,7 @@ class elliptics_storage_t : public api::storage_t
 
 		elliptics_storage_t(context_t &context,
 			const std::string &name,
-			const Json::Value &args);
+			const dynamic_t &args);
 
 		std::string read(const std::string &collection, const std::string &key);
 		void write(const std::string &collection, const std::string &key, const std::string &blob, const std::vector<std::string> &tags);

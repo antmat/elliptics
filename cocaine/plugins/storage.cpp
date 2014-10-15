@@ -41,7 +41,7 @@ static cocaine::logging::priorities convert_verbosity(ioremap::elliptics::log_le
 		case DNET_LOG_ERROR:
 			return cocaine::logging::error;
 		default:
-			return cocaine::logging::ignore;
+			return cocaine::logging::debug;
 	};
 }
 
@@ -63,7 +63,7 @@ log_adapter_impl_t::log_adapter_impl_t(const std::shared_ptr<logging::log_t> &lo
 {
 }
 
-void log_adapter_impl_t::handle(const blackhole::log::record_t &record)
+void log_adapter_impl_t::handle(const blackhole::record_t &record)
 {
 	dnet_log_level level = record.extract<dnet_log_level>(blackhole::keyword::severity<dnet_log_level>().name());
 	auto cocaine_level = convert_verbosity(level);
@@ -72,47 +72,47 @@ void log_adapter_impl_t::handle(const blackhole::log::record_t &record)
 
 log_adapter_t::log_adapter_t(const std::shared_ptr<logging::log_t> &log)
 {
-	add_frontend(blackhole::utils::make_unique<log_adapter_impl_t>(log));
-	verbosity(convert_verbosity(log->verbosity()));
+	add_frontend(std::unique_ptr<log_adapter_impl_t>(new log_adapter_impl_t(log)));
+	verbosity(convert_verbosity(log->log().verbosity()));
 }
 
 namespace {
 
-dnet_config parse_json_config(const Json::Value& args) {
+dnet_config parse_json_config(const dynamic_t::object_t& args) {
 	dnet_config cfg;
 
 	std::memset(&cfg, 0, sizeof(cfg));
 
-	cfg.wait_timeout   = args.get("wait-timeout", 5).asInt();
-	cfg.check_timeout  = args.get("check-timeout", 20).asInt();
-	cfg.io_thread_num  = args.get("io-thread-num", 0).asUInt();
-	cfg.net_thread_num = args.get("net-thread-num", 0).asUInt();
-	cfg.flags          = args.get("flags", 0).asInt();
+	cfg.wait_timeout   = args.at("wait-timeout", 5).as_int();
+	cfg.check_timeout  = args.at("check-timeout", 20).as_int();
+	cfg.io_thread_num  = args.at("io-thread-num", 0).as_uint();
+	cfg.net_thread_num = args.at("net-thread-num", 0).as_uint();
+	cfg.flags          = args.at("flags", 0).as_int();
 
 	return cfg;
 }
 
 }
 
-elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &name, const Json::Value &args) :
+elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &name, const dynamic_t &args) :
 	category_type(context, name, args),
 	m_context(context),
-	m_log(new log_t(context, name)),
+	m_log(context.log(name)),
 	m_log_adapter(m_log),
-	m_config(parse_json_config(args)),
+	m_config(parse_json_config(args.as_object())),
 	m_node(ioremap::elliptics::logger(m_log_adapter, blackhole::log::attributes_t()), m_config),
 	m_session(m_node)
 {
-	Json::Value nodes(args["nodes"]);
+	dynamic_t::array_t nodes = args.as_object().at("nodes").as_array();
 
-	if (nodes.empty() || !nodes.isArray()) {
+	if (nodes.empty()) {
 		throw storage_error_t("no nodes has been specified");
 	}
 
 	std::vector<ioremap::elliptics::address> remotes;
 	for (auto it = nodes.begin(); it != nodes.end(); ++it) {
 		try {
-			remotes.emplace_back((*it).asString());
+			remotes.emplace_back((*it).as_string());
 		} catch (ioremap::elliptics::error &exc) {
 			throw storage_error_t("failed to parse remote: %s", exc.what());
 		}
@@ -125,7 +125,7 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 	}
 
 	{
-		auto scn = args.get("success-copies-num", "any");
+		auto scn = args.as_object().at("success-copies-num", "any").as_string();
 
 		if (scn == "any") {
 			m_success_copies_num = ioremap::elliptics::checkers::at_least_one;
@@ -139,27 +139,27 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 	}
 
 	{
-		auto timeouts = args["timeouts"];
+		if (!args.as_object().at("timeouts").is_object()) {
+			throw storage_error_t("invalid format of timeouts");
+		}
+
+		auto timeouts = args.as_object().at("timeouts").as_object();
 
 		if (!timeouts.empty()) {
-			if (!timeouts.isObject()) {
-				throw storage_error_t("invalid format of timeouts");
-			}
-
-			m_timeouts.read = timeouts.get("read", 5).asInt();
-			m_timeouts.write = timeouts.get("write", 5).asInt();
-			m_timeouts.remove = timeouts.get("remove", 5).asInt();
-			m_timeouts.find = timeouts.get("find", 5).asInt();
+			m_timeouts.read = timeouts.at("read", 5).as_int();
+			m_timeouts.write = timeouts.at("write", 5).as_int();
+			m_timeouts.remove = timeouts.at("remove", 5).as_int();
+			m_timeouts.find = timeouts.at("find", 5).as_int();
 		}
 	}
 
-	Json::Value groups(args["groups"]);
+	dynamic_t::array_t groups = args.as_object().at("groups").as_array();
 
-	if (groups.empty() || !groups.isArray()) {
+	if (groups.empty()) {
 		throw storage_error_t("no groups has been specified");
 	}
 
-	std::transform(groups.begin(), groups.end(), std::back_inserter(m_groups), std::mem_fn(&Json::Value::asInt));
+	std::transform(groups.begin(), groups.end(), std::back_inserter(m_groups), std::mem_fn(&dynamic_t::as_int));
 
 	m_session.set_groups(m_groups);
 	m_session.set_exceptions_policy(ell::session::no_exceptions);

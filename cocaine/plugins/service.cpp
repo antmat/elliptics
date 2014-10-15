@@ -18,7 +18,10 @@
  */
 
 #include "service.hpp"
-#include <cocaine/messages.hpp>
+
+#include <cocaine/dynamic.hpp>
+
+#include "cocaine/tuple.hpp"
 
 #define debug() if (1) {} else std::cerr
 //#define debug() std::cerr << __PRETTY_FUNCTION__ << ": " << __LINE__ << " "
@@ -27,9 +30,10 @@ namespace cocaine {
 
 using namespace std::placeholders;
 
-elliptics_service_t::elliptics_service_t(context_t &context, io::reactor_t &reactor, const std::string &name, const Json::Value &args) :
+elliptics_service_t::elliptics_service_t(context_t &context, boost::asio::io_service &reactor, const std::string &name, const dynamic_t &args) :
 	api::service_t(context, reactor, name, args),
-	m_storage(api::storage(context, args.get("source", "core").asString())),
+	dispatch<io::elliptics_tag>(name),
+	m_storage(api::storage(context, args.as_object().at("source", "core").as_string())),
 	m_elliptics(dynamic_cast<storage::elliptics_storage_t*>(m_storage.get()))
 {
 	debug() << m_elliptics << std::endl;
@@ -38,14 +42,14 @@ elliptics_service_t::elliptics_service_t(context_t &context, io::reactor_t &reac
 		throw storage_error_t("To use elliptics service storage must be also elliptics");
 	}
 
-	on<io::storage::read  >("read",   std::bind(&elliptics_service_t::read,   this, _1, _2));
-	on<io::storage::write >("write",  std::bind(&elliptics_service_t::write,  this, _1, _2, _3, _4));
-	on<io::storage::remove>("remove", std::bind(&elliptics_service_t::remove, this, _1, _2));
-	on<io::storage::find  >("find",   std::bind(&elliptics_service_t::find,   this, _1, _2));
-	on<io::elliptics::cache_read >("cache_read",  std::bind(&elliptics_service_t::cache_read,  this, _1, _2));
-	on<io::elliptics::cache_write>("cache_write", std::bind(&elliptics_service_t::cache_write, this, _1, _2, _3, _4));
-	on<io::elliptics::bulk_read  >("bulk_read",   std::bind(&elliptics_service_t::bulk_read,   this, _1, _2));
-	on<io::elliptics::read_latest>("read_latest", std::bind(&elliptics_service_t::read_latest, this, _1, _2));
+	on<io::storage::read  >(std::bind(&elliptics_service_t::read,   this, _1, _2));
+	on<io::storage::write >(std::bind(&elliptics_service_t::write,  this, _1, _2, _3, _4));
+	on<io::storage::remove>(std::bind(&elliptics_service_t::remove, this, _1, _2));
+	on<io::storage::find  >(std::bind(&elliptics_service_t::find,   this, _1, _2));
+	on<io::elliptics::cache_read >(std::bind(&elliptics_service_t::cache_read,  this, _1, _2));
+	on<io::elliptics::cache_write>(std::bind(&elliptics_service_t::cache_write, this, _1, _2, _3, _4));
+	on<io::elliptics::bulk_read  >(std::bind(&elliptics_service_t::bulk_read,   this, _1, _2));
+	on<io::elliptics::read_latest>(std::bind(&elliptics_service_t::read_latest, this, _1, _2));
 }
 
 deferred<std::string> elliptics_service_t::read(const std::string &collection, const std::string &key)

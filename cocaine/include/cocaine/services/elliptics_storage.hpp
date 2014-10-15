@@ -18,18 +18,22 @@
 
 #include <cocaine/api/storage.hpp>
 #include <cocaine/api/service.hpp>
-#include <cocaine/messages.hpp>
-#include <cocaine/rpc/slots/deferred.hpp>
+#include <cocaine/rpc/protocol.hpp>
+#include <cocaine/idl/storage.hpp>
 
 namespace cocaine { namespace io {
 
 struct elliptics_tag;
 
-namespace elliptics {
+struct elliptics {
 
 struct cache_read
 {
 	typedef elliptics_tag tag;
+
+	static const char* alias() {
+		return "cache_read";
+	}
 
 	typedef boost::mpl::list<
 	/* Key namespace. Currently no ACL checks are performed, so in theory any app can read
@@ -37,37 +41,45 @@ struct cache_read
 		std::string,
 	/* Key. */
 		std::string
-	> tuple_type;
+	> argument_type;
 
-	typedef
+	typedef stream_of<
 	/* The stored value. Typically it will be serialized with msgpack, but it's not a strict
 	   requirement. But as there's no way to know the format, try to unpack it anyway. */
 		std::string
-	result_type;
+	>::tag upstream_type;
 };
 
 struct read_latest
 {
 	typedef elliptics_tag tag;
 
+	static const char* alias() {
+		return "read_latest";
+	}
+
 	typedef boost::mpl::list<
 	/* Key namespace. Currently no ACL checks are performed, so in theory any app can read
 	   any other app data without restrictions. */
 		std::string,
 	/* Key. */
 		std::string
-	> tuple_type;
+	> argument_type;
 
-	typedef
+	typedef stream_of<
 	/* The stored value. Typically it will be serialized with msgpack, but it's not a strict
 	   requirement. But as there's no way to know the format, try to unpack it anyway. */
 		std::string
-	result_type;
+	>::tag upstream_type;
 };
 
 struct cache_write
 {
 	typedef elliptics_tag tag;
+
+	static const char* alias() {
+		return "cache_write";
+	}
 
 	typedef boost::mpl::list<
 	/* Key namespace. */
@@ -79,11 +91,15 @@ struct cache_write
 		std::string,
 	/* Timeout. Life-time of the data, if not set it's unlimited */
 		io::optional_with_default<int, 0>
-	> tuple_type;
+	> argument_type;
 };
 
 struct bulk_read {
 	typedef elliptics_tag tag;
+
+	static const char* alias() {
+		return "bulk_read";
+	}
 
 	typedef boost::mpl::list<
 	/* Key namespace. Currently no ACL checks are performed, so in theory any app can read
@@ -91,17 +107,21 @@ struct bulk_read {
 		std::string,
 	/* Keys. */
 		std::vector<std::string>
-	> tuple_type;
+	> argument_type;
 
-	typedef
+	typedef stream_of<
 	/* The stored values. Typically it will be serialized with msgpack, but it's not a strict
 	   requirement. But as there's no way to know the format, try to unpack it anyway. */
 		std::map<std::string, std::string>
-	result_type;
+	>::tag upstream_type;
 };
 
 struct bulk_write {
 	typedef elliptics_tag tag;
+
+	static const char* alias() {
+		return "bulk_write";
+	}
 
 	typedef boost::mpl::list<
 	/* Key namespace. */
@@ -111,14 +131,14 @@ struct bulk_write {
 	/* Values. Typically, it should be serialized with msgpack, so that the future reader could
 	   assume that it can be deserialized safely. */
 		std::vector<std::string>
-	> tuple_type;
+	> argument_type;
 
-	typedef
+	typedef stream_of<
 	/* Write results. If write for some key fails errno can be accessed by the key. */
 		std::map<std::string, int>
-	result_type;
+	>::tag upstream_type;
 };
-} // namespace cocaine::elliptics
+};
 
 template<>
 struct protocol<elliptics_tag> : public extends<storage_tag>
@@ -133,7 +153,9 @@ struct protocol<elliptics_tag> : public extends<storage_tag>
 		elliptics::bulk_read,
 		elliptics::read_latest
 //		elliptics::bulk_write
-	> type;
+	> messages;
+
+	typedef elliptics scope;
 };
 
 }} // namespace cocaine::io
