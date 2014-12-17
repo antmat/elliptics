@@ -25,6 +25,7 @@ add_definitions(-DCONFIG_ELLIPTICS_VERSION_3=${ELLIPTICS_VERSION_3})
 
 option(WITH_PYTHON "Build python bindings" ON)
 option(WITH_COCAINE "Build with cocaine support" ON)
+option(WITH_COCAINE_PLUGIN "Build cocaine storage plugin" ON)
 option(WITH_EXAMPLES "Build example applications" ON)
 option(HAVE_MODULE_BACKEND_SUPPORT "Build ioserv with shared library backend support" ON)
 
@@ -75,10 +76,13 @@ endif()
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 find_package(Threads REQUIRED)
 
-if(WITH_COCAINE)
+if(WITH_COCAINE OR WITH_COCAINE_PLUGIN)
     # Find some cocaine
     find_package(Cocaine REQUIRED)
     include_directories(${COCAINE_INCLUDE_DIRS})
+    if(WITH_COCAINE AND NOT COCAINE_CFLAGS)
+        set(COCAINE_CFLAGS "-DHAVE_COCAINE_SUPPORT=1")
+    endif()
     add_definitions(${COCAINE_CFLAGS})
 endif()
 
@@ -145,7 +149,7 @@ add_subdirectory(tests)
 if(WITH_EXAMPLES)
     add_subdirectory(example)
 endif()
-if(WITH_COCAINE)
+if(WITH_COCAINE_PLUGIN)
     add_subdirectory(cocaine/plugins)
 endif()
 
