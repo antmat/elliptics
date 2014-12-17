@@ -39,7 +39,7 @@ elliptics_service_t::elliptics_service_t(context_t &context, boost::asio::io_ser
 	debug() << m_elliptics << std::endl;
 
 	if (!m_elliptics) {
-		throw storage_error_t("To use elliptics service storage must be also elliptics");
+		throw storage_error_t("to be able to use elliptics service, storage must be also elliptics");
 	}
 
 	on<io::storage::read  >(std::bind(&elliptics_service_t::read,   this, _1, _2));
