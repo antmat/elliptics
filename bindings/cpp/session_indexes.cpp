@@ -17,6 +17,8 @@
  * along with Elliptics.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <blackhole/macro.hpp>
+
 #include "elliptics/utils.hpp"
 #include "elliptics/debug.hpp"
 
@@ -454,13 +456,12 @@ struct on_remove_index : std::enable_shared_from_this<on_remove_index>
 
 	void on_find_entry(const find_indexes_result_entry &entry)
 	{
-		using namespace std::placeholders;
 		++counter;
 		session remove_sess = sess.clone();
 		session_set_indexes(remove_sess, entry.id, index_entry_list,
 			DNET_INDEXES_FLAGS_NOINTERNAL | DNET_INDEXES_FLAGS_REMOVE_ONLY).connect(
-			std::bind(&on_remove_index::on_remove_index_entry, shared_from_this(), _1),
-			std::bind(&on_remove_index::on_request_finished, shared_from_this(), _1));
+			std::bind(&on_remove_index::on_remove_index_entry, shared_from_this(), std::placeholders::_1),
+			std::bind(&on_remove_index::on_request_finished, shared_from_this(), std::placeholders::_1));
 
 		{
 			logger &log = sess.get_logger();
@@ -474,18 +475,17 @@ struct on_remove_index : std::enable_shared_from_this<on_remove_index>
 		if (remove_data) {
 			++counter;
 			sess.clone().remove(entry.id).connect(
-				std::bind(&on_remove_index::on_remove_entry, shared_from_this(), _1),
-				std::bind(&on_remove_index::on_request_finished, shared_from_this(), _1));
+				std::bind(&on_remove_index::on_remove_entry, shared_from_this(), std::placeholders::_1),
+				std::bind(&on_remove_index::on_request_finished, shared_from_this(), std::placeholders::_1));
 		}
 	}
 
 	void on_find_finished(const error_info &error)
 	{
 		(void) error;
-		using namespace std::placeholders;
 		sess.clone().remove_index_internal(index_id).connect(
-			std::bind(&async_result_handler<callback_result_entry>::process, &handler, _1),
-			std::bind(&on_remove_index::on_request_finished, shared_from_this(), _1));
+			std::bind(&async_result_handler<callback_result_entry>::process, &handler, std::placeholders::_1),
+			std::bind(&on_remove_index::on_request_finished, shared_from_this(), std::placeholders::_1));
 	}
 
 	void on_remove_entry(const remove_result_entry &)
@@ -520,7 +520,6 @@ struct on_remove_index : std::enable_shared_from_this<on_remove_index>
 
 async_generic_result session::remove_index(const key &id, bool remove_data)
 {
-	using namespace std::placeholders;
 	transform(id);
 	async_generic_result result(*this);
 
@@ -534,8 +533,8 @@ async_generic_result session::remove_index(const key &id, bool remove_data)
 	functor->index_entry_list.assign(1, index_entry(id.raw_id(), data_pointer()));
 	functor->remove_data = remove_data;
 	find_all_indexes(functor->index_id_list).connect(
-		std::bind(&on_remove_index::on_find_entry, functor, _1),
-		std::bind(&on_remove_index::on_find_finished, functor, _1));
+		std::bind(&on_remove_index::on_find_entry, functor, std::placeholders::_1),
+		std::bind(&on_remove_index::on_find_finished, functor, std::placeholders::_1));
 
 	return result;
 }
@@ -594,8 +593,8 @@ struct add_to_capped_collection_handler : public std::enable_shared_from_this<ad
 					++counter;
 
 					sess.remove(entry.id).connect(
-						std::bind(&add_to_capped_collection_handler::on_removed_entry, shared_from_this(), _1),
-						std::bind(&add_to_capped_collection_handler::on_finished, shared_from_this(), _1));
+						std::bind(&add_to_capped_collection_handler::on_removed_entry, shared_from_this(), std::placeholders::_1),
+						std::bind(&add_to_capped_collection_handler::on_finished, shared_from_this(), std::placeholders::_1));
 				}
 			}
 		}
@@ -655,10 +654,8 @@ async_generic_result session::add_to_capped_collection(const key &id, const inde
 
 	auto handler = std::make_shared<add_to_capped_collection_handler>(remove_sess, result);
 
-	using std::placeholders::_1;
-
-	indexes_result.connect(std::bind(&add_to_capped_collection_handler::on_entry, handler, _1),
-		std::bind(&add_to_capped_collection_handler::on_finished, handler, _1));
+	indexes_result.connect(std::bind(&add_to_capped_collection_handler::on_entry, handler, std::placeholders::_1),
+		std::bind(&add_to_capped_collection_handler::on_finished, handler, std::placeholders::_1));
 
 	return result;
 }
@@ -956,10 +953,8 @@ async_find_indexes_result session::find_indexes_internal(const std::vector<dnet_
 	auto convert_map = std::make_shared<find_indexes_handler::id_map>(std::move(raw_handler->take_convert_map()));
 	raw_handler->start();
 
-	using namespace std::placeholders;
-
-	raw_result.connect(std::bind(on_find_indexes_process, sess, convert_map, handler, _1),
-		std::bind(on_find_indexes_complete, handler, _1));
+	raw_result.connect(std::bind(on_find_indexes_process, sess, convert_map, handler, std::placeholders::_1),
+		std::bind(on_find_indexes_complete, handler, std::placeholders::_1));
 
 	return result;
 }
@@ -1303,7 +1298,7 @@ struct merge_indexes_callback
 		logger &log = write_session.get_logger();
 
 		if (error) {
-			BH_LOG(log, DNET_LOG_ERROR, "%s: failed to read indexes: %s", dnet_dump_id(&id.id()), error.message());
+			BH_LOG(log, DNET_LOG_ERROR, "%s: failed to read indexes: %s", dnet_dump_id(&id.id()), error.message().c_str());
 
 			handler.complete(error);
 			return;

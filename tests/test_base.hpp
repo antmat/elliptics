@@ -3,6 +3,7 @@
 
 #include <elliptics/cppdef.h>
 #include <boost/variant.hpp>
+#include <blackhole/macro.hpp>
 
 #ifndef TEST_DO_NOT_INCLUDE_PLACEHOLDERS
 # include <boost/bind/placeholders.hpp>
@@ -57,9 +58,9 @@ struct test_wrapper
 
 	void operator() () const
 	{
-		BH_LOG(*logger, DNET_LOG_INFO, "Start test: %s", test_name);
+		BH_LOG(*logger, DNET_LOG_INFO, "Start test: %s", test_name.c_str());
 		test_body();
-		BH_LOG(*logger, DNET_LOG_INFO, "Finish test: %s", test_name);
+		BH_LOG(*logger, DNET_LOG_INFO, "Finish test: %s", test_name.c_str());
 	}
 };
 

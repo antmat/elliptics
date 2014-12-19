@@ -32,6 +32,8 @@
 
 #include <netinet/in.h>
 
+#include <blackhole/macro.hpp>
+
 #include "elliptics/cppdef.h"
 #include "elliptics/backends.h"
 

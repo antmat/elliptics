@@ -27,6 +27,7 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
+#include <blackhole/macro.hpp>
 
 #include "elliptics_id.h"
 #include "async_result.h"
@@ -211,7 +212,7 @@ void ios_base_failure_translator(const std::ios_base::failure &exc)
 	PyErr_SetString(PyExc_IOError, exc.what());
 }
 
-void logger_log(logger_base &log, int level, const char *msg)
+void logger_log(elliptics_file_logger &log, int level, const char *msg)
 {
 	BH_LOG(log, dnet_log_level(level), "%s", msg);
 }
@@ -296,19 +297,17 @@ BOOST_PYTHON_MODULE(core)
 	bp::register_exception_translator<error>(error_translator);
 	bp::register_exception_translator<std::ios_base::failure>(ios_base_failure_translator);
 
-	bp::class_<logger_base, boost::noncopyable>("AbstractLogger")
+	bp::class_<elliptics_file_logger, boost::noncopyable>(
+		"Logger", "File logger for using inside Elliptics client library",
+		bp::init<const char *, int>(bp::args("log_file", "log_level"),
+		    "__init__(self, filename, log_level)\n"
+		    "    Initializes file logger by the specified file and level of verbosity\n\n"
+		    "    logger = elliptics.Logger(\"/dev/stderr\", elliptics.log_level.debug)"))
 		.def("log", logger_log, bp::args("log_level", "log_message"),
 		    "log(self, level, message)\n"
 		    "   logs a message with level\n\n"
 		    "   logger.log(elliptics.log_level.debug, \"We've got a problem\"")
 	;
-
-	bp::class_<elliptics_file_logger, bp::bases<logger_base>, boost::noncopyable> file_logger_class(
-		"Logger", "File logger for using inside Elliptics client library",
-		bp::init<const char *, int>(bp::args("log_file", "log_level"),
-		    "__init__(self, filename, log_level)\n"
-		    "    Initializes file logger by the specified file and level of verbosity\n\n"
-		    "    logger = elliptics.Logger(\"/dev/stderr\", elliptics.log_level.debug)"));
 
 	bp::class_<dnet_config>(
 	    "Config", "Config allows override default configuration for client node")

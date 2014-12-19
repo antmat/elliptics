@@ -22,6 +22,7 @@
 #include "compress.hpp"
 
 #include <exception>
+#include <blackhole/macro.hpp>
 
 #include "library/elliptics.h"
 #include "io_stat_provider.hpp"

@@ -32,6 +32,8 @@
 
 #include <netinet/tcp.h>
 
+#include <blackhole/macro.hpp>
+
 #include "elliptics.h"
 #include "elliptics/packet.h"
 #include "elliptics/interface.h"

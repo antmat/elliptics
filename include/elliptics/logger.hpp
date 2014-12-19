@@ -13,7 +13,7 @@
 # define BLACKHOLE_HEADER_ONLY
 #endif
 
-#include <blackhole/log.hpp>
+#include <blackhole/logger.hpp>
 #include <blackhole/logger/wrapper.hpp>
 #include <blackhole/formatter/map/value.hpp>
 #include <blackhole/defaults/severity.hpp>
@@ -35,7 +35,7 @@ typedef blackhole::defaults::severity log_level;
 typedef blackhole::verbose_logger_t<log_level> logger_base;
 typedef blackhole::wrapper_t<logger_base> logger;
 
-class file_logger : public logger_base
+class file_logger: public logger_base
 {
 public:
 	explicit file_logger(const char *file, log_level level);

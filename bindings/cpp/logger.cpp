@@ -19,20 +19,16 @@ __thread trace_id_t backend_trace_id_hook;
 namespace ioremap { namespace elliptics {
 
 file_logger::file_logger(const char *file, log_level level)
-{
-	verbosity(level);
-
-	auto formatter = blackhole::utils::make_unique<blackhole::formatter::string_t>(format());
+: logger_base(level) {
+	auto formatter = blackhole::aux::util::make_unique<blackhole::formatter::string_t>(format());
 	formatter->set_mapper(file_logger::mapping());
-	auto sink = blackhole::utils::make_unique<blackhole::sink::files_t<>>
+	auto sink = blackhole::aux::util::make_unique<blackhole::sink::files_t<>>
 		(blackhole::sink::files_t<>::config_type(file));
-	auto frontend = blackhole::utils::make_unique
+	auto frontend = blackhole::aux::util::make_unique
 		<blackhole::frontend_t<blackhole::formatter::string_t, blackhole::sink::files_t<>>>
 			(std::move(formatter), std::move(sink));
 
 	add_frontend(std::move(frontend));
-
-	add_attribute(keyword::request_id() = 0);
 }
 
 std::string file_logger::format()
@@ -146,7 +142,7 @@ void dnet_node_set_trace_id(dnet_logger *logger, uint64_t trace_id, int tracebit
 		};
 
 		if (backend_id >= 0) {
-			attributes.insert(std::make_pair(std::string("backend_id"), blackhole::log::attribute_t(backend_id)));
+			attributes.emplace_back(std::make_pair(std::string("backend_id"), blackhole::log::attribute_t(backend_id)));
 		}
 
 		new (local_attributes) scoped_attributes_t(*logger, std::move(attributes));
@@ -215,9 +211,20 @@ dnet_log_level dnet_log_get_verbosity(dnet_logger *logger)
 	return logger->log().verbosity();
 }
 
+static bool filter_by_tracebit(const blackhole::attribute::combined_view_t& view, dnet_log_level level, dnet_log_level current_level) {
+	auto passed = level >= current_level;
+	if (!passed) {
+		if (auto tracebit = view.get<int>("tracebit")) {
+			return *tracebit == 1;
+		}
+	}
+	return passed;
+}
+
 void dnet_log_set_verbosity(dnet_logger *logger, dnet_log_level level)
 {
-	logger->log().verbosity(level);
+	logger->log().set_filter(level,
+		std::bind(filter_by_tracebit, std::placeholders::_1, std::placeholders::_2, level));
 }
 
 static void dnet_log_add_message(dnet_logger_record *record, const char *format, va_list args)
@@ -234,7 +241,7 @@ static void dnet_log_add_message(dnet_logger_record *record, const char *format,
 		buffer[--len] = '\0';
 
 	try {
-		record->attributes.insert(blackhole::keyword::message() = buffer);
+		record->insert(blackhole::keyword::message() = buffer);
 	} catch (...) {
 	}
 }
@@ -277,8 +284,8 @@ void dnet_log_close_record(dnet_logger_record *record)
 void dnet_log_record_set_request_id(dnet_logger_record *record, uint64_t trace_id, int tracebit)
 {
 	try {
-		record->attributes.insert(ioremap::elliptics::keyword::request_id() = trace_id);
-		record->attributes.insert(blackhole::keyword::tracebit() = tracebit);
+		record->insert(ioremap::elliptics::keyword::request_id() = trace_id);
+		record->insert(blackhole::keyword::tracebit() = tracebit);
 	} catch (...) {
 	}
 }
