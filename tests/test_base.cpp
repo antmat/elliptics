@@ -939,7 +939,7 @@ static void start_client_nodes(const nodes_data::ptr &data, std::ostream &debug_
 		data->logger.reset(new file_logger(path.c_str(), DNET_LOG_DEBUG));
 	}
 
-	data->node.reset(new node(logger(*data->logger, blackhole::log::attributes_t())));
+	data->node.reset(new node(logger(*data->logger, blackhole::attribute::set_t())));
 	for (size_t i = 0; i < remotes.size(); ++i) {
 		data->node->add_remote(remotes[i].c_str());
 	}

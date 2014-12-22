@@ -518,18 +518,18 @@ static void create_session_data(session_data &sess, struct dnet_node *node)
 	sess.policy = session::default_exceptions;
 }
 
-session_data::session_data(const node &n) : logger(n.get_log(), blackhole::log::attributes_t())
+session_data::session_data(const node &n) : logger(n.get_log(), blackhole::attribute::set_t())
 {
 	create_session_data(*this, n.get_native());
 }
 
-session_data::session_data(dnet_node *node) : logger(*dnet_node_get_logger(node), blackhole::log::attributes_t())
+session_data::session_data(dnet_node *node) : logger(*dnet_node_get_logger(node), blackhole::attribute::set_t())
 {
 	create_session_data(*this, node);
 }
 
 session_data::session_data(session_data &other)
-	: logger(other.logger, blackhole::log::attributes_t()),
+	: logger(other.logger, blackhole::attribute::set_t()),
 	  filter(other.filter),
 	  checker(other.checker),
 	  error_handler(other.error_handler),
@@ -732,7 +732,7 @@ long session::get_timeout(void) const
 void session::set_trace_id(trace_id_t trace_id)
 {
 	dnet_session_set_trace_id(m_data->session_ptr, trace_id);
-	blackhole::log::attributes_t attributes = {
+	blackhole::attribute::set_t attributes = {
 		keyword::request_id() = trace_id
 	};
 	m_data->logger = logger(m_data->logger, std::move(attributes));

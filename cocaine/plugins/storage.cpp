@@ -100,7 +100,7 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 	m_log(context.log(name)),
 	m_log_adapter(m_log),
 	m_config(parse_json_config(args.as_object())),
-	m_node(ioremap::elliptics::logger(m_log_adapter, blackhole::log::attributes_t()), m_config),
+	m_node(ioremap::elliptics::logger(m_log_adapter, blackhole::attribute::set_t()), m_config),
 	m_session(m_node)
 {
 	dynamic_t::array_t nodes = args.as_object().at("nodes").as_array();

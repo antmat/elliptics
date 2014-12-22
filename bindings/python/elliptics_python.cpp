@@ -125,10 +125,10 @@ dnet_config& dnet_config_config(dnet_config &config) {
 class elliptics_node_python : public node, public bp::wrapper<node> {
 	public:
 		elliptics_node_python(logger_base &l)
-			: node(logger(l, blackhole::log::attributes_t())) {}
+			: node(logger(l, blackhole::attribute::set_t())) {}
 
 		elliptics_node_python(logger_base &l, dnet_config &cfg)
-			: node(logger(l, blackhole::log::attributes_t()), cfg) {}
+			: node(logger(l, blackhole::attribute::set_t()), cfg) {}
 
 		elliptics_node_python(const node &n): node(n) {}
 

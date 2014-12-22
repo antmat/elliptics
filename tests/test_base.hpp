@@ -76,7 +76,7 @@ std::function<void ()> make(const char *test_name, Method method, session sess, 
 	sess.set_trace_id(trace_id);
 
 	test_wrapper wrapper = {
-		std::make_shared<ioremap::elliptics::logger>(sess.get_logger(), blackhole::log::attributes_t()),
+		std::make_shared<ioremap::elliptics::logger>(sess.get_logger(), blackhole::attribute::set_t()),
 		test_name,
 		std::bind(method, sess, std::forward<Args>(args)...)
 	};

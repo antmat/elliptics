@@ -38,12 +38,12 @@ typedef blackhole::wrapper_t<logger_base> logger;
 class file_logger: public logger_base
 {
 public:
-	explicit file_logger(const char *file, log_level level);
+    explicit file_logger(const char *file, log_level level);
 
-	static std::string format();
-	static std::string generate_level(log_level level);
-	static log_level parse_level(const std::string &name);
-	static blackhole::mapping::value_t mapping();
+    static std::string format();
+    static std::string generate_level(log_level level);
+    static log_level parse_level(const std::string &name);
+    static blackhole::mapping::value_t mapping();
 };
 
 DECLARE_LOCAL_KEYWORD(dnet_id, std::string)
@@ -52,7 +52,7 @@ DECLARE_EVENT_KEYWORD(request_id, uint64_t)
 } }
 
 typedef ioremap::elliptics::logger dnet_logger;
-typedef blackhole::log::record_t dnet_logger_record;
+typedef blackhole::record_t dnet_logger_record;
 typedef ioremap::elliptics::log_level dnet_log_level;
 
 #define ELLIPTICS_LOG_LEVEL ioremap::elliptics::log_level
@@ -64,11 +64,11 @@ typedef struct cpp_blackhole_log_record_t dnet_logger_record;
 
 // Keep in sync with blackhole::defaults::severity
 enum dnet_log_level {
-	DNET_LOG_DEBUG,
-	DNET_LOG_NOTICE,
-	DNET_LOG_INFO,
-	DNET_LOG_WARNING,
-	DNET_LOG_ERROR
+    DNET_LOG_DEBUG,
+    DNET_LOG_NOTICE,
+    DNET_LOG_INFO,
+    DNET_LOG_WARNING,
+    DNET_LOG_ERROR
 };
 
 #define ELLIPTICS_LOG_LEVEL enum dnet_log_level

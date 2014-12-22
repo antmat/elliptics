@@ -74,19 +74,19 @@ static void format_request_id(blackhole::aux::attachable_ostringstream &out, uin
 }
 
 struct localtime_formatter_action {
-    blackhole::aux::datetime::generator_t generator;
+	blackhole::aux::datetime::generator_t generator;
 
-    localtime_formatter_action(const std::string &format) :
+	localtime_formatter_action(const std::string &format) :
 	generator(blackhole::aux::datetime::generator_factory_t::make(format))
-    {
-    }
+	{
+	}
 
-    void operator() (blackhole::aux::attachable_ostringstream &stream, const timeval &value) const
-    {
+	void operator() (blackhole::aux::attachable_ostringstream &stream, const timeval &value) const
+	{
 	std::tm tm;
 	localtime_r(&value.tv_sec, &tm);
 	generator(stream, tm, value.tv_usec);
-    }
+	}
 };
 
 blackhole::mapping::value_t file_logger::mapping()
@@ -136,7 +136,7 @@ void dnet_node_set_trace_id(dnet_logger *logger, uint64_t trace_id, int tracebit
 	scoped_trace_id_hook[scoped_count] = tracebit ? ~0ull : 0;
 
 	try {
-		blackhole::log::attributes_t attributes = {
+		blackhole::attribute::set_t attributes = {
 			ioremap::elliptics::keyword::request_id() = trace_id,
 			blackhole::keyword::tracebit() = bool(tracebit)
 		};
@@ -181,7 +181,7 @@ dnet_logger_record *dnet_log_open_record(dnet_logger *logger, dnet_log_level lev
 	dnet_logger_record *record = reinterpret_cast<dnet_logger_record *>(dnet_logger_record_buffer);
 
 	try {
-		new (record) blackhole::log::record_t(logger->open_record(level));
+		new (record) blackhole::record_t(logger->open_record(level));
 	} catch (...) {
 		return NULL;
 	}
@@ -197,7 +197,7 @@ int dnet_log_enabled(dnet_logger *logger, dnet_log_level level)
 {
 	dnet_logger_record *record = reinterpret_cast<dnet_logger_record *>(dnet_logger_record_buffer);
 	try {
-		new (record) blackhole::log::record_t(logger->open_record(level));
+		new (record) blackhole::record_t(logger->open_record(level));
 		int result = record->valid();
 		record->~record_t();
 		return result;
