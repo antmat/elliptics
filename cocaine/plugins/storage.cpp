@@ -70,10 +70,11 @@ void log_adapter_impl_t::handle(const blackhole::record_t &record)
 	COCAINE_LOG(m_log, cocaine_level, "elliptics: %s", m_formatter.format(record));
 }
 
-log_adapter_t::log_adapter_t(const std::shared_ptr<logging::log_t> &log)
+log_adapter_t::log_adapter_t(const std::shared_ptr<logging::log_t> &log) :
+    ioremap::elliptics::logger_base(DNET_LOG_DEBUG)
 {
 	add_frontend(std::unique_ptr<log_adapter_impl_t>(new log_adapter_impl_t(log)));
-	verbosity(convert_verbosity(log->log().verbosity()));
+	set_filter(convert_verbosity(log->log().verbosity()));
 }
 
 namespace {

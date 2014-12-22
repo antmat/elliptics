@@ -43,7 +43,7 @@ struct cache_read
 		std::string
 	> argument_type;
 
-	typedef stream_of<
+	typedef option_of<
 	/* The stored value. Typically it will be serialized with msgpack, but it's not a strict
 	   requirement. But as there's no way to know the format, try to unpack it anyway. */
 		std::string
@@ -66,7 +66,7 @@ struct read_latest
 		std::string
 	> argument_type;
 
-	typedef stream_of<
+	typedef option_of<
 	/* The stored value. Typically it will be serialized with msgpack, but it's not a strict
 	   requirement. But as there's no way to know the format, try to unpack it anyway. */
 		std::string
@@ -109,7 +109,7 @@ struct bulk_read {
 		std::vector<std::string>
 	> argument_type;
 
-	typedef stream_of<
+	typedef option_of<
 	/* The stored values. Typically it will be serialized with msgpack, but it's not a strict
 	   requirement. But as there's no way to know the format, try to unpack it anyway. */
 		std::map<std::string, std::string>
@@ -133,7 +133,7 @@ struct bulk_write {
 		std::vector<std::string>
 	> argument_type;
 
-	typedef stream_of<
+	typedef option_of<
 	/* Write results. If write for some key fails errno can be accessed by the key. */
 		std::map<std::string, int>
 	>::tag upstream_type;

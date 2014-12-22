@@ -30,7 +30,7 @@ namespace cocaine {
 
 using namespace std::placeholders;
 
-elliptics_service_t::elliptics_service_t(context_t &context, boost::asio::io_service &reactor, const std::string &name, const dynamic_t &args) :
+elliptics_service_t::elliptics_service_t(context_t &context, asio::io_service &reactor, const std::string &name, const dynamic_t &args) :
 	api::service_t(context, reactor, name, args),
 	dispatch<io::elliptics_tag>(name),
 	m_storage(api::storage(context, args.as_object().at("source", "core").as_string())),

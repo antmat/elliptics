@@ -34,7 +34,7 @@ class elliptics_service_t : public api::service_t, public dispatch<io::elliptics
 {
 	public:
 		elliptics_service_t(context_t &context,
-			boost::asio::io_service &reactor,
+			asio::io_service &reactor,
 			const std::string &name,
 			const dynamic_t &args);
 
