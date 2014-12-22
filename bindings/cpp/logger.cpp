@@ -33,7 +33,7 @@ file_logger::file_logger(const char *file, log_level level)
 
 std::string file_logger::format()
 {
-	return "%(timestamp)s %(request_id::/)s%(lwp)s/%(pid)s %(severity)s: %(message)s, attrs: [%(...L)s]";
+    return "%(timestamp)s %(request_id::/)s%(lwp)s/%(pid)s %(severity)s: %(message)s%(...:, attrs\\:[:])s";
 }
 
 static const char *severity_names[] = {

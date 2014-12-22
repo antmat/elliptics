@@ -59,7 +59,9 @@ static dnet_log_level convert_verbosity(cocaine::logging::priorities prio) {
 	}
 }
 
-log_adapter_impl_t::log_adapter_impl_t(const std::shared_ptr<logging::log_t> &log): m_log(log), m_formatter("%(message)s %(...L)s")
+log_adapter_impl_t::log_adapter_impl_t(const std::shared_ptr<logging::log_t> &log):
+    m_log(log), 
+    m_formatter("%(message)s%(...: :)s")
 {
 }
 
