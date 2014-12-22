@@ -1,3 +1,9 @@
+elliptics (2.26.3.29-cocaine1) unstable; urgency=low
+
+  * temporary: cocaine fix.
+
+ -- Evgeny Safronov <division494@gmail.com>  Mon, 22 Dec 2014 15:33:05 +0300
+
 elliptics (2.26.3.29) unstable; urgency=low
 
   * package: depend on 0.22.9+ eblob where init errno code was introduced
