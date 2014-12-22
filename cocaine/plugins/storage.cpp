@@ -60,8 +60,8 @@ static dnet_log_level convert_verbosity(cocaine::logging::priorities prio) {
 }
 
 log_adapter_impl_t::log_adapter_impl_t(const std::shared_ptr<logging::log_t> &log):
-    m_log(log), 
-    m_formatter("%(message)s%(...: :)s")
+	m_log(log),
+	m_formatter("%(message)s%(...: :)s")
 {
 }
 
@@ -73,7 +73,7 @@ void log_adapter_impl_t::handle(const blackhole::record_t &record)
 }
 
 log_adapter_t::log_adapter_t(const std::shared_ptr<logging::log_t> &log) :
-    ioremap::elliptics::logger_base(DNET_LOG_DEBUG)
+	ioremap::elliptics::logger_base(DNET_LOG_DEBUG)
 {
 	add_frontend(std::unique_ptr<log_adapter_impl_t>(new log_adapter_impl_t(log)));
 	set_filter(convert_verbosity(log->log().verbosity()));
@@ -142,12 +142,7 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 	}
 
 	{
-		if (!args.as_object().at("timeouts").is_object()) {
-			throw storage_error_t("invalid format of timeouts");
-		}
-
-		auto timeouts = args.as_object().at("timeouts").as_object();
-
+		dynamic_t::object_t timeouts = args.as_object().at("timeouts", dynamic_t::empty_object).as_object();
 		if (!timeouts.empty()) {
 			m_timeouts.read = timeouts.at("read", 5).as_int();
 			m_timeouts.write = timeouts.at("write", 5).as_int();
@@ -156,8 +151,7 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 		}
 	}
 
-	dynamic_t::array_t groups = args.as_object().at("groups").as_array();
-
+	dynamic_t::array_t groups = args.as_object().at("groups", dynamic_t::empty_array).as_array();
 	if (groups.empty()) {
 		throw storage_error_t("no groups has been specified");
 	}
