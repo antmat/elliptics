@@ -22,6 +22,8 @@
 #include <sstream>
 #include <functional>
 
+#include <blackhole/macro.hpp>
+
 #include "node_p.hpp"
 
 #include "../../include/elliptics/async_result_cast.hpp"
@@ -484,7 +486,7 @@ void remove_on_fail_impl(session &sess, const error_info &error, const std::vect
 	BH_LOG(log, DNET_LOG_DEBUG, "%s: failed to exec %s: %s, going to remove_data",
 		dnet_dump_id(&statuses.front().id),
 		dnet_cmd_string(statuses.front().cmd),
-		error.message());
+		error.message().c_str());
 
 	std::vector<int> rm_groups;
 	for (auto it = statuses.begin(); it != statuses.end(); ++it) {
@@ -807,7 +809,7 @@ public:
 
 			BH_LOG(m_sess.get_logger(), DNET_LOG_INFO,
 				"read_callback::read-recovery: %s: going to write %llu bytes -> %s groups",
-				dnet_dump_id_str(io->id), static_cast<unsigned long long>(io->size), join_groups(m_failed_groups));
+				dnet_dump_id_str(io->id), static_cast<unsigned long long>(io->size), join_groups(m_failed_groups).c_str());
 
 			std::sort(m_failed_groups.begin(), m_failed_groups.end());
 			m_failed_groups.erase(std::unique(m_failed_groups.begin(), m_failed_groups.end()), m_failed_groups.end());
@@ -830,7 +832,7 @@ public:
 
 			BH_LOG(m_sess.get_logger(), DNET_LOG_INFO,
 				"read_callback::read-recovery: %s: write %llu bytes -> %s groups",
-				dnet_dump_id_str(io->id), static_cast<unsigned long long>(io->size), join_groups(m_failed_groups));
+				dnet_dump_id_str(io->id), static_cast<unsigned long long>(io->size), join_groups(m_failed_groups).c_str());
 
 			new_sess.write_data(write_ctl);
 		}

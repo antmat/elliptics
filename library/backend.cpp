@@ -781,7 +781,7 @@ void dnet_backend_info::parse(ioremap::elliptics::config::config_data *data, con
 		const auto cache = backend.at("cache");
 		cache_config = ioremap::cache::cache_config::parse(cache);
 	} else if (data->cache_config) {
-		cache_config = blackhole::utils::make_unique<ioremap::cache::cache_config>(*data->cache_config);
+		cache_config = blackhole::aux::util::make_unique<ioremap::cache::cache_config>(*data->cache_config);
 	}
 
 	io_thread_num = backend.at("io_thread_num", data->cfg_state.io_thread_num);

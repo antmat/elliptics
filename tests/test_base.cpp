@@ -933,7 +933,7 @@ static void start_client_nodes(const nodes_data::ptr &data, std::ostream &debug_
 	dnet_config config;
 	memset(&config, 0, sizeof(config));
 
-	data->logger.reset(new logger_base);
+	data->logger.reset(new logger_base(DNET_LOG_ERROR));
 	if (!data->directory.path().empty()) {
 		const std::string path = data->directory.path() + "/client.log";
 		data->logger.reset(new file_logger(path.c_str(), DNET_LOG_DEBUG));

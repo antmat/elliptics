@@ -29,6 +29,7 @@
 #include <map>
 #include <set>
 #include <iostream>
+#include <blackhole/macro.hpp>
 
 using namespace ioremap::elliptics;
 
