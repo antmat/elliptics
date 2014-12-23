@@ -241,7 +241,7 @@ static void dnet_log_add_message(dnet_logger_record *record, const char *format,
 		buffer[--len] = '\0';
 
 	try {
-		record->insert(blackhole::keyword::message() = buffer);
+        record->message(buffer);
 	} catch (...) {
 	}
 }

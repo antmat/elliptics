@@ -61,15 +61,15 @@ static dnet_log_level convert_verbosity(cocaine::logging::priorities prio) {
 
 log_adapter_impl_t::log_adapter_impl_t(const std::shared_ptr<logging::log_t> &log):
 	m_log(log),
-	m_formatter("%(message)s%(...: :)s")
+	m_formatter("%(message)s %(...::)s")
 {
 }
 
-void log_adapter_impl_t::handle(const blackhole::record_t &record)
+void log_adapter_impl_t::handle(const blackhole::record_t &rec)
 {
-	dnet_log_level level = record.extract<dnet_log_level>(blackhole::keyword::severity<dnet_log_level>().name());
-	auto cocaine_level = convert_verbosity(level);
-	COCAINE_LOG(m_log, cocaine_level, "elliptics: %s", m_formatter.format(record));
+    dnet_log_level level = rec.extract<dnet_log_level>(blackhole::keyword::severity<dnet_log_level>().name());
+    auto cocaine_level = convert_verbosity(level);
+    COCAINE_LOG(m_log, cocaine_level, "%s", m_formatter.format(rec));
 }
 
 log_adapter_t::log_adapter_t(const std::shared_ptr<logging::log_t> &log) :
@@ -86,12 +86,11 @@ dnet_config parse_json_config(const dynamic_t::object_t& args) {
 
 	std::memset(&cfg, 0, sizeof(cfg));
 
-	cfg.wait_timeout   = args.at("wait-timeout", 5).as_int();
-	cfg.check_timeout  = args.at("check-timeout", 20).as_int();
+	cfg.wait_timeout   = args.at("wait-timeout", 5).as_uint();
+	cfg.check_timeout  = args.at("check-timeout", 20).as_uint();
 	cfg.io_thread_num  = args.at("io-thread-num", 0).as_uint();
 	cfg.net_thread_num = args.at("net-thread-num", 0).as_uint();
-	cfg.flags          = args.at("flags", 0).as_int();
-
+	cfg.flags          = args.at("flags", 0).as_uint();
 	return cfg;
 }
 
@@ -144,10 +143,10 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 	{
 		dynamic_t::object_t timeouts = args.as_object().at("timeouts", dynamic_t::empty_object).as_object();
 		if (!timeouts.empty()) {
-			m_timeouts.read = timeouts.at("read", 5).as_int();
-			m_timeouts.write = timeouts.at("write", 5).as_int();
-			m_timeouts.remove = timeouts.at("remove", 5).as_int();
-			m_timeouts.find = timeouts.at("find", 5).as_int();
+			m_timeouts.read = timeouts.at("read", 5).as_uint();
+			m_timeouts.write = timeouts.at("write", 5).as_uint();
+			m_timeouts.remove = timeouts.at("remove", 5).as_uint();
+			m_timeouts.find = timeouts.at("find", 5).as_uint();
 		}
 	}
 
@@ -156,7 +155,7 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 		throw storage_error_t("no groups has been specified");
 	}
 
-	std::transform(groups.begin(), groups.end(), std::back_inserter(m_groups), std::mem_fn(&dynamic_t::as_int));
+	std::transform(groups.begin(), groups.end(), std::back_inserter(m_groups), std::mem_fn(&dynamic_t::as_uint));
 
 	m_session.set_groups(m_groups);
 	m_session.set_exceptions_policy(ell::session::no_exceptions);
