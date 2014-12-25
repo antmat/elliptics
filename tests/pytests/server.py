@@ -15,7 +15,6 @@
 # GNU General Public License for more details.
 # =============================================================================
 
-import pytest
 import sys
 import os
 import shutil
@@ -26,11 +25,13 @@ class Servers:
     def __init__(self,
                  groups=[1],
                  without_cocaine=False,
-                 nodes_count=3,
-                 backends_count=3):
+                 nodes_count=2,
+                 backends_count=2,
+                 isolated=False,
+                 path='servers'):
         import json
         import subprocess
-        self.path = 'servers'
+        self.path = path
         if os.path.exists(self.path):
             shutil.rmtree(self.path)
         os.mkdir(self.path)
@@ -40,6 +41,7 @@ class Servers:
         config['fork'] = True
         config['monitor'] = True
         config['path'] = self.path
+        config['isolated'] = isolated
         servers = []
         for node in xrange(nodes_count):
             backends = []
@@ -70,30 +72,7 @@ class Servers:
         self.remotes = [str(x['remote']) for x in self.config['servers']]
         self.monitors = [str(x['monitor']) for x in self.config['servers']]
 
-    def stop(self, failed):
+    def stop(self):
         if self.p and self.p.poll() is None:
             self.p.terminate()
             self.p.wait()
-
-
-@pytest.fixture(scope='session')
-def server(request):
-    if request.config.option.remotes:
-        return None
-
-    groups = [int(g) for g in request.config.option.groups.split(',')]
-
-    servers = Servers(groups=groups,
-                      without_cocaine=request.config.option.without_cocaine,
-                      nodes_count=int(request.config.option.nodes_count),
-                      backends_count=int(request.config.option.backends_count))
-
-    request.config.option.remotes = servers.remotes
-    request.config.option.monitors = servers.monitors
-
-    def fin():
-        print "Finilizing Servers"
-        servers.stop(request.node.exitstatus != 0)
-    request.addfinalizer(fin)
-
-    return servers

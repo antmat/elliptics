@@ -13,7 +13,6 @@
 # GNU General Public License for more details.
 # =============================================================================
 
-import cPickle as pickle
 import sys
 import logging
 import threading
@@ -21,8 +20,7 @@ import os
 import traceback
 
 from elliptics_recovery.utils.misc import elliptics_create_node, RecoverStat, validate_index, INDEX_MAGIC_NUMBER_LENGTH
-
-sys.path.insert(0, "bindings/python/")
+from elliptics_recovery.utils.misc import load_key_data
 
 import elliptics
 from elliptics import Address
@@ -88,7 +86,11 @@ class KeyRecover(object):
             else:
                 #first read should be at least INDEX_MAGIC_NUMBER_LENGTH bytes
                 size = min(self.total_size, max(size, INDEX_MAGIC_NUMBER_LENGTH))
-            read_result = self.read_session.read_data(self.key)
+            log.debug("Reading key: {0} from groups: {1}, chunked: {2}, offset: {3}, size: {4}, total_size: {5}"
+                      .format(self.key, self.read_session.groups, self.chunked, self.recovered_size, size, self.total_size))
+            read_result = self.read_session.read_data(self.key,
+                                                      offset=self.recovered_size,
+                                                      size=size)
             read_result.connect(self.onread)
         except Exception as e:
             log.error("Read key: {0} by offset: {1} and size: {2} raised exception: {3}, traceback: {4}"
@@ -230,22 +232,12 @@ class KeyRecover(object):
         return self.result
 
 
-def unpcikle(filepath):
-    with open(filepath, 'r') as input_file:
-        try:
-            unpickler = pickle.Unpickler(input_file)
-            while True:
-                yield unpickler.load()
-        except:
-            pass
-
-
 def iterate_key(filepath, groups):
     '''
     Iterates key and sort each key key_infos by timestamp and size
     '''
     groups = set(groups)
-    for key, key_infos in unpcikle(filepath):
+    for key, key_infos in load_key_data(filepath):
         if len(key_infos) + len(groups) > 1:
             key_infos = sorted(key_infos, key=lambda x: (x.timestamp, x.size), reverse=True)
             missed_groups = tuple(groups.difference([k.group_id for k in key_infos]))
@@ -261,20 +253,23 @@ def iterate_key(filepath, groups):
 
 def recover(ctx):
     from itertools import islice
+    import time
     ret = True
-    stats = ctx.monitor.stats['recover']
+    stats = ctx.stats['recover']
 
     stats.timer('recover', 'started')
 
     it = iterate_key(ctx.merged_filename, ctx.groups)
 
+    elog = elliptics.Logger(ctx.log_file, int(ctx.log_level))
     node = elliptics_create_node(address=ctx.address,
-                                 elog=ctx.elog,
+                                 elog=elog,
                                  wait_timeout=ctx.wait_timeout,
                                  net_thread_num=4,
                                  io_thread_num=1,
                                  remotes=ctx.remotes)
-
+    processed_keys = 0
+    start = time.time()
     while 1:
         batch = tuple(islice(it, ctx.batch_size))
         if not batch:
@@ -293,11 +288,13 @@ def recover(ctx):
                 successes += 1
             else:
                 failures += 1
+        processed_keys += successes + failures
         rs.apply(stats)
         stats.counter('recovered_keys', successes)
-        ctx.monitor.stats.counter('recovered_keys', successes)
+        ctx.stats.counter('recovered_keys', successes)
         stats.counter('recovered_keys', -failures)
-        ctx.monitor.stats.counter('recovered_keys', -failures)
+        ctx.stats.counter('recovered_keys', -failures)
+        stats.set_counter('recovery_speed', processed_keys / (time.time() - start))
     stats.timer('recover', 'finished')
     return ret
 
@@ -419,7 +416,7 @@ if __name__ == '__main__':
                          .format(options.wait_timeout, repr(e), traceback.format_exc()))
 
     log.debug("Creating logger")
-    ctx.elog = elliptics.Logger(ctx.log_file, int(ctx.log_level))
+    elog = elliptics.Logger(ctx.log_file, int(ctx.log_level))
 
     result = recover(ctx)
 

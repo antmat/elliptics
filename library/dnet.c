@@ -106,7 +106,7 @@ static int dnet_cmd_route_list(struct dnet_net_state *orig, struct dnet_cmd *cmd
 	const int dump_size = 128;
 	char orig_addr_str[dump_size+1], addr_str[dump_size+1], first_addr_str[dump_size+1];
 
-	dnet_server_convert_dnet_addr_raw(&orig->addr, orig_addr_str, dump_size);
+	dnet_addr_string_raw(&orig->addr, orig_addr_str, dump_size);
 
 	list_for_each_entry(st, &n->dht_state_list, node_entry) {
 		int skip = dnet_addr_equal(&st->addr, &orig->addr) || !st->addrs;
@@ -114,9 +114,9 @@ static int dnet_cmd_route_list(struct dnet_net_state *orig, struct dnet_cmd *cmd
 		if (!st->addrs)
 			snprintf(first_addr_str, sizeof(first_addr_str), "no-address");
 		else
-			dnet_server_convert_dnet_addr_raw(&st->addrs[0], first_addr_str, dump_size);
+			dnet_addr_string_raw(&st->addrs[0], first_addr_str, dump_size);
 
-		dnet_server_convert_dnet_addr_raw(&st->addr, addr_str, dump_size);
+		dnet_addr_string_raw(&st->addr, addr_str, dump_size);
 
 		dnet_log(n, DNET_LOG_NOTICE, "route-list: request-from: %s, route-table-node: %s, "
 				"addr_num: %d, first-addr: %s, skip: %d",
@@ -130,7 +130,7 @@ static int dnet_cmd_route_list(struct dnet_net_state *orig, struct dnet_cmd *cmd
 		assert(st->addr_num == n->addr_num);
 
 		dnet_log(n, DNET_LOG_NOTICE, "%s: addr_num: %d",
-				dnet_server_convert_dnet_addr(&st->addrs[0]),
+				dnet_addr_string(&st->addrs[0]),
 				n->addr_num);
 
 		memcpy(addrs, st->addrs, n->addr_num * sizeof(struct dnet_addr));
@@ -269,7 +269,7 @@ int dnet_send_ack(struct dnet_net_state *st, struct dnet_cmd *cmd, int err, int 
 		ack.status = err;
 
 		dnet_log(n, DNET_LOG_NOTICE, "%s: %s: ack -> %s: trans: %llu, flags: %s, status: %d.",
-				dnet_dump_id(&cmd->id), dnet_cmd_string(cmd->cmd), dnet_server_convert_dnet_addr(&st->addr),
+				dnet_dump_id(&cmd->id), dnet_cmd_string(cmd->cmd), dnet_addr_string(&st->addr),
 				tid, dnet_flags_dump_cflags(ack.flags), err);
 
 		dnet_convert_cmd(&ack);
@@ -339,7 +339,7 @@ int dnet_send_reply_threshold(void *state, struct dnet_cmd *cmd,
 			/* If high watermark is reached we should sleep */
 			dnet_log(st->n, DNET_LOG_DEBUG,
 					"State high_watermark reached: %s: %d, sleeping",
-					dnet_server_convert_dnet_addr(&st->addr),
+					dnet_addr_string(&st->addr),
 					atomic_read(&st->send_queue_size));
 
 			pthread_mutex_lock(&st->send_lock);
@@ -352,7 +352,7 @@ int dnet_send_reply_threshold(void *state, struct dnet_cmd *cmd,
 			pthread_mutex_unlock(&st->send_lock);
 
 			dnet_log(st->n, DNET_LOG_DEBUG, "State woken up: %s: %d",
-					dnet_server_convert_dnet_addr(&st->addr),
+					dnet_addr_string(&st->addr),
 					atomic_read(&st->send_queue_size));
 		}
 
@@ -440,22 +440,6 @@ static int dnet_iterator_callback_common(void *priv, struct dnet_raw_id *key,
 		return -EINVAL;
 
 	iterated_keys = atomic_inc(&ipriv->iterated_keys);
-
-	/* If DNET_IFLAGS_KEY_RANGE is set... */
-	if (ipriv->req->flags & DNET_IFLAGS_KEY_RANGE) {
-		/* ...skip keys not in key ranges */
-		struct dnet_iterator_range *curr = ipriv->range;
-		struct dnet_iterator_range *end = curr + ipriv->req->range_num;
-		for (; curr < end; ++curr) {
-			if (dnet_id_cmp_str(key->id, curr->key_begin.id) >= 0
-					&& dnet_id_cmp_str(key->id, curr->key_end.id) < 0)
-				goto key_range_found;
-		}
-		/* no range contains the key */
-		goto key_skipped;
-	}
-
-key_range_found:
 
 	/* If DNET_IFLAGS_TS_RANGE is set... */
 	if (ipriv->req->flags & DNET_IFLAGS_TS_RANGE) {
@@ -639,14 +623,16 @@ static int dnet_iterator_start(struct dnet_backend_io *backend, struct dnet_net_
 		err = -ENOTSUP;
 		goto err_out_exit;
 	}
+
 	/* Check callback type */
 	if (ireq->itype <= DNET_ITYPE_FIRST || ireq->itype >= DNET_ITYPE_LAST) {
 		err = -ENOTSUP;
 		goto err_out_exit;
 	}
+
 	/* Check ranges */
 	if ((err = dnet_iterator_check_key_range(st, cmd, ireq, irange)) ||
-			(err = dnet_iterator_check_ts_range(st, cmd, ireq)))
+	    (err = dnet_iterator_check_ts_range(st, cmd, ireq)))
 		goto err_out_exit;
 
 	atomic_init(&cpriv.iterated_keys, 0);

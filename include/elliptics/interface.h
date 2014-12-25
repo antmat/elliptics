@@ -22,11 +22,12 @@
 
 #include <elliptics/core.h>
 
+#include <netdb.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -401,95 +402,54 @@ int dnet_log_init(struct dnet_node *s, dnet_logger *l);
 void __attribute__((weak)) dnet_log_raw(struct dnet_node *n, int level, const char *format, ...) DNET_LOG_CHECK;
 void __attribute__((weak)) dnet_log_raw_log_only(dnet_logger *l, int level, const char *format, ...) DNET_LOG_CHECK;
 
-#define NIP6(addr) \
-	(addr).s6_addr[0], \
-	(addr).s6_addr[1], \
-	(addr).s6_addr[2], \
-	(addr).s6_addr[3], \
-	(addr).s6_addr[4], \
-	(addr).s6_addr[5], \
-	(addr).s6_addr[6], \
-	(addr).s6_addr[7], \
-	(addr).s6_addr[8], \
-	(addr).s6_addr[9], \
-	(addr).s6_addr[10], \
-	(addr).s6_addr[11], \
-	(addr).s6_addr[12], \
-	(addr).s6_addr[13], \
-	(addr).s6_addr[14], \
-	(addr).s6_addr[15]
-#define NIP6_FMT "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x"
-
 /*
  * Logging helpers used for the fine-printed address representation.
  */
-static inline const char *dnet_server_convert_addr_raw(struct sockaddr *sa, unsigned int len, char *inet_addr, int inet_size)
+static inline int dnet_addr_port(const struct dnet_addr *addr)
 {
-	memset(inet_addr, 0, inet_size);
-	if (len == sizeof(struct sockaddr_in)) {
-		struct sockaddr_in *in = (struct sockaddr_in *)sa;
-		snprintf(inet_addr, inet_size, "%s", inet_ntoa(in->sin_addr));
-	} else if (len == sizeof(struct sockaddr_in6)) {
-		struct sockaddr_in6 *in = (struct sockaddr_in6 *)sa;
-		snprintf(inet_addr, inet_size, NIP6_FMT, NIP6(in->sin6_addr));
-	} else if (len == 0) {
-		return "null_address";
-	} else {
-		return "invalid_address";
-	}
-	return inet_addr;
-}
-
-static inline const char *dnet_server_convert_addr(struct sockaddr *sa, unsigned int len)
-{
-	static __thread char __inet_addr[128];
-	return dnet_server_convert_addr_raw(sa, len, __inet_addr, sizeof(__inet_addr));
-}
-
-static inline int dnet_server_convert_port(struct sockaddr *sa, unsigned int len)
-{
-	if (len == sizeof(struct sockaddr_in)) {
-		struct sockaddr_in *in = (struct sockaddr_in *)sa;
+	if (addr->addr_len == sizeof(struct sockaddr_in) && addr->family == AF_INET) {
+		struct sockaddr_in *in = (struct sockaddr_in *)addr->addr;
 		return ntohs(in->sin_port);
-	} else if (len == sizeof(struct sockaddr_in6)) {
-		struct sockaddr_in6 *in = (struct sockaddr_in6 *)sa;
+	} else if (addr->addr_len == sizeof(struct sockaddr_in6) && addr->family == AF_INET6) {
+		struct sockaddr_in6 *in = (struct sockaddr_in6 *)addr->addr;
 		return ntohs(in->sin6_port);
 	}
 	return 0;
 }
 
-static inline const char *dnet_server_convert_dnet_addr_raw(const struct dnet_addr *addr, char *inet_addr, int inet_size)
+static inline const char *dnet_addr_host_string(const struct dnet_addr *addr)
+{
+	static __thread char __dnet_addr_host_string[128];
+	int err;
+	memset(__dnet_addr_host_string, 0, sizeof(__dnet_addr_host_string));
+
+	err = getnameinfo((struct sockaddr *)addr->addr, addr->addr_len,
+			__dnet_addr_host_string, sizeof(__dnet_addr_host_string),
+			NULL, 0, NI_NUMERICHOST | NI_NUMERICSERV);
+	if (err) {
+		return "invalid address";
+	}
+
+	return __dnet_addr_host_string;
+}
+
+static inline const char *dnet_addr_string_raw(const struct dnet_addr *addr, char *inet_addr, int inet_size)
 {
 	memset(inet_addr, 0, inet_size);
-	if (addr->family == AF_INET) {
-		const struct sockaddr_in *in = (const struct sockaddr_in *)addr->addr;
-		snprintf(inet_addr, inet_size, "%s:%d", inet_ntoa(in->sin_addr), ntohs(in->sin_port));
-	} else if (addr->family == AF_INET6) {
-		const struct sockaddr_in6 *in = (const struct sockaddr_in6 *)addr->addr;
-		snprintf(inet_addr, inet_size, NIP6_FMT":%d", NIP6(in->sin6_addr), ntohs(in->sin6_port));
-	} else if (addr->family == 0) {
-		return "null_address";
-	} else {
-		return "invalid_address";
-	}
+	snprintf(inet_addr, inet_size, "%s:%d", dnet_addr_host_string(addr), dnet_addr_port(addr));
 	return inet_addr;
 }
 
-static inline const char *dnet_server_convert_dnet_addr(const struct dnet_addr *sa)
+static inline const char *dnet_addr_string(const struct dnet_addr *sa)
 {
 	static __thread char ___inet_addr[128];
-	return dnet_server_convert_dnet_addr_raw(sa, ___inet_addr, sizeof(___inet_addr));
+	return dnet_addr_string_raw(sa, ___inet_addr, sizeof(___inet_addr));
 }
 
 struct dnet_addr *dnet_state_addr(struct dnet_net_state *st);
 static inline const char *dnet_state_dump_addr(struct dnet_net_state *st)
 {
-	return dnet_server_convert_dnet_addr(dnet_state_addr(st));
-}
-
-static inline const char *dnet_state_dump_addr_only(struct dnet_addr *a)
-{
-	return dnet_server_convert_addr((struct sockaddr *)a->addr, a->addr_len);
+	return dnet_addr_string(dnet_state_addr(st));
 }
 
 static inline const char *dnet_print_time(const struct dnet_time *t)
@@ -789,7 +749,8 @@ void dnet_indexes_transform_index_id(struct dnet_node *node, const struct dnet_r
 int dnet_indexes_get_shard_id(struct dnet_node *node, const struct dnet_raw_id *object_id);
 int dnet_node_get_indexes_shard_count(struct dnet_node *node);
 
-int dnet_lookup_addr(struct dnet_session *s, const void *remote, int len, const struct dnet_id *id, int group_id, char *dst, int dlen);
+int dnet_lookup_addr(struct dnet_session *s, const void *remote, int len, const struct dnet_id *id, int group_id,
+		struct dnet_addr *addr, int *backend);
 
 struct dnet_id_param {
 	unsigned int		group_id;

@@ -3,7 +3,7 @@
 
 Summary:	Distributed hash table storage
 Name:		elliptics
-Version:	2.26.3.29
+Version:	2.26.3.33-2
 Release:	1%{?dist}
 
 License:	GPLv2+
@@ -15,7 +15,7 @@ BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires:	python-devel
 BuildRequires:	libcocaine-core2-devel >= 0.11.2.0
 BuildRequires:  cocaine-framework-native-devel >= 0.11.0.0
-BuildRequires:	eblob-devel >= 0.22.9
+BuildRequires:	eblob-devel >= 0.22.13-1
 BuildRequires:  libblackhole-devel >= 0.2.3-1
 BuildRequires:	libev-devel libtool-ltdl-devel
 BuildRequires:	cmake msgpack-devel python-msgpack
@@ -143,6 +143,81 @@ rm -rf %{buildroot}
 
 
 %changelog
+* Fri Dec 05 2014 Kirill Smorodinnikov <shaitkir@gmail.com> - 2.26.3.33-2
+- dependencies: updated eblob version
+
+* Fri Dec 05 2014 Kirill Smorodinnikov <shaitkir@gmail.com> - 2.26.3.33-1
+- Disable only non-disabled backends at cleanup.
+- config: do not reparse config at each backend init - only if config was modified. Removed useless copying of an array at config methods.
+- Fixed code indent
+- speed up dc recovery as don't spend time on pickling/unpickling data and concatenate files via cat.
+- Change file concatenation from calling cat to python file read+write
+- use shutil.copyfileobj to concatinate files
+- remove extra bracket
+- Added option for dumping into text file all iterated keys
+- Switched pickle protocol to binary to reduce size of temp files and reduce processing time
+- Made dumping key enabled by default, to disable it introduced new option -> -u
+- don't add option for key dumping in dc_recovery
+- removed multiple context expression for python 2.6 compatibility
+- don't set ctx.dump_keys on dc_recovery
+- removed multiple context expression for python 2.6 compatibility
+- Pytests: moved fixture to global conftests. Disabled srw for test cluster in test_specific_cases. Cleaned up pytests code.
+- Pytests: added iterator tests.
+- config: use uint32_t for parsing group from config - disallow setting negative group.
+- bindings: added start_time and end_time methods for async_result: both for C++ and Python bindings. They returns timestamps when async result was created and finished.
+- Fixed calculation tnsec of elapsed_time.
+- python: fixed gil_guard
+- python: made elliptics.Id to be initialized by any iterable object and group
+- recovery: replaced cPickle by msgpack for packing intermediate results
+- recovery: added 'total_keys' statistics that shows how much keys should be recovered/processed
+- recovery: added 'recovery_speed' and 'iteration_speed' to statistics. Both values are mesuared in records per second.
+- iteration: added new iteration flag: DNET_IFLAGS_NO_META which turns off reading extended header from blob and speedups iteration, but all keys that will be returned by such iteration will have empty metadata (timestamp and user_flags).
+- recovery: added '-M' option to dnet_recovery which speedups iteration phases of recovery but sacrifices checking metadata.
+- pytests: updated some test cases of test_recovery to use new '-M' option
+- pytests: added case to test_session_iterator that check iterating with no_meta flag
+- iteration: removed double checking of ranges - keys is already filtered in eblob.
+- recovery: added recovery_speed to merge stats.
+- recovery: used total_size instead of size for determining record size. …
+- recovery: escaped dumping keys that allready consistent in all groups
+- core: fixed broking API/ABI.
+
+* Mon Nov 10 2014 Evgeniy Polyakov <zbr@ioremap.net> - 2.26.3.33
+- lookup: extended lookup address to return dnet_addr, not address string
+- pytests: fixed broken index tests - use common cluster for all test and isolated cluster for test_special_cases
+
+* Fri Oct 24 2014 Evgeniy Polyakov <zbr@ioremap.net> - 2.26.3.32
+- tests: created config struct for create_nodes method and moved all argument to it
+- pytests: added test case for checking correct handling situation when 2 backends from different nodes has equal group and ids
+- pytests: made server node isolated - now server nodes do not know about each other
+- core: reset state if dnet_idc_update_backend has been failed.
+
+* Thu Oct 23 2014 Evgeniy Polyakov <zbr@ioremap.net> - 2.26.3.31
+- session: get rid of handmade address-to-string conversion, use dnet_addr_string() and friends helpers
+- addr: use getnameinfo() to properly determine family and automatically dereference sockaddr
+- addr: new thread-safe helpers to print address strings
+- Fixed remove_on_fail implementation
+
+* Tue Oct 21 2014 Evgeniy Polyakov <zbr@ioremap.net> - 2.26.3.30
+- recovery: removed odd increasing of iterations
+- recovery: fixed memory leak at merge recovery
+- python: removed wrapping address method at result entries that inherited from CallbackResultEntry
+- recovery: Moved code from dnet_recovery to recovery.py for using/testing it from pytests.
+-     Added 'portable' method to Ctx that returns lightweight copy of the context that can be used by multiprocessing.
+-     Removed monitor from context, left only stats - proxy object for sending updates to monitor from different processes/threads.
+-     Removed using global context, use portable context insead of.
+-     Moved process pool initialization and destruction into common recovery.py - removed duplicating code.
+- Recovery: Use cached route-list for speedup recovering
+- recovery: implemented one-node recovery for merge from dump
+- recovery: cleanups global reference to context
+- recovery: correctly close and join process pool
+- recovery: correctly stops monitor threads
+- test: decreased number of backends and nodes at pytests - decreased number of threads and processes used from tests
+- cmake: added blackhole headers lookup
+- recovery: used threading.Event for waiting complete
+- recovery: decreased log level of log that looking up key from dump fail failed
+- tests: reduce number of io/net threads
+- eblob: allow small leters in size modificators M,m are for megabyte and so on
+
 * Tue Oct 14 2014 Evgeniy Polyakov <zbr@ioremap.net> - 2.26.3.29
 - package: depend on 0.22.9+ eblob where init errno code was introduced
 - route: do not request route list if node flags includes DNET_CFG_NO_ROUTE_LIST

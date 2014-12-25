@@ -103,10 +103,7 @@ struct eblob_backend_config {
 };
 
 /* Pre-callback that formats arguments and calls ictl->callback */
-static int blob_iterate_callback(struct eblob_disk_control *dc,
-		struct eblob_ram_control *rctl __unused,
-		void *data, void *priv, void *thread_priv __unused)
-{
+static int blob_iterate_callback_common(struct eblob_disk_control *dc, void *data, void *priv, int no_meta) {
 	struct dnet_iterator_ctl *ictl = priv;
 	struct dnet_ext_list elist;
 	uint64_t size;
@@ -118,20 +115,46 @@ static int blob_iterate_callback(struct eblob_disk_control *dc,
 	size = dc->data_size;
 	dnet_ext_list_init(&elist);
 
-	/* If it's an extended record - extract header, move data pointer */
-	if (dc->flags & BLOB_DISK_CTL_EXTHDR) {
-		err = dnet_ext_list_extract((void *)&data, &size, &elist,
-				DNET_EXT_DONT_FREE_ON_DESTROY);
-		if (err != 0)
-			goto err;
+	if (!no_meta) {
+		/* If it's an extended record - extract header, move data pointer */
+		if (dc->flags & BLOB_DISK_CTL_EXTHDR) {
+			err = dnet_ext_list_extract((void *)&data, &size, &elist,
+					DNET_EXT_DONT_FREE_ON_DESTROY);
+			if (err != 0)
+				goto err;
+		}
+	} else {
+		dnet_empty_time(&elist.timestamp);
+		if (dc->flags & BLOB_DISK_CTL_EXTHDR) {
+			size -= sizeof(struct dnet_ext_list_hdr);
+		}
 	}
 
 	err = ictl->callback(ictl->callback_private, (struct dnet_raw_id *)&dc->key,
-			data, size, &elist);
+	                     data, size, &elist);
 
 err:
 	dnet_ext_list_destroy(&elist);
 	return err;
+}
+
+/* Pre-callback which calls blob_iterate_callback_common with no_meta=1.
+ * With no_meta=1 blob_iterate_callback_common will not read ext header from blob and
+ * will empty timestamp.
+ */
+static int blob_iterate_callback_without_meta(struct eblob_disk_control *dc,
+		struct eblob_ram_control *rctl __unused,
+		void *data, void *priv, void *thread_priv __unused) {
+	return blob_iterate_callback_common(dc, data, priv, 1);
+}
+
+/* Pre-callback which calls blob_iterate_callback_common with no_meta=0
+ * With no_meta=0 blob_iterate_callback_common will read ext header from blob.
+ */
+static int blob_iterate_callback_with_meta(struct eblob_disk_control *dc,
+		struct eblob_ram_control *rctl __unused,
+		void *data, void *priv, void *thread_priv __unused) {
+	return blob_iterate_callback_common(dc, data, priv, 0);
 }
 
 static int blob_write(struct eblob_backend_config *c, void *state,
@@ -819,13 +842,13 @@ static int dnet_blob_set_blob_size(struct dnet_config_backend *b, char *key, cha
 	struct eblob_backend_config *c = b->data;
 	uint64_t val = strtoul(value, NULL, 0);
 
-	if (strchr(value, 'T'))
+	if (strchr(value, 'T') || strchr(value, 't'))
 		val *= 1024*1024*1024*1024ULL;
-	else if (strchr(value, 'G'))
+	else if (strchr(value, 'G') || strchr(value, 'g'))
 		val *= 1024*1024*1024ULL;
-	else if (strchr(value, 'M'))
+	else if (strchr(value, 'M') || strchr(value, 'm'))
 		val *= 1024*1024;
-	else if (strchr(value, 'K'))
+	else if (strchr(value, 'K') || strchr(value, 'k'))
 		val *= 1024;
 
 	if (!strcmp(key, "blob_size"))
@@ -942,6 +965,7 @@ static int dnet_eblob_iterator(struct dnet_iterator_ctl *ictl, struct dnet_itera
 	struct eblob_backend_config *c = ictl->iterate_private;
 	struct eblob_backend *b = c->eblob;
 	int err;
+	const int no_meta = ireq->flags & DNET_IFLAGS_NO_META && !(ireq->flags & (DNET_IFLAGS_TS_RANGE | DNET_IFLAGS_DATA));
 
 	/* Init iterator config */
 	struct eblob_iterate_control eictl = {
@@ -950,7 +974,7 @@ static int dnet_eblob_iterator(struct dnet_iterator_ctl *ictl, struct dnet_itera
 		.log = c->data.log,
 		.flags = EBLOB_ITERATE_FLAGS_ALL | EBLOB_ITERATE_FLAGS_READONLY,
 		.iterator_cb = {
-			.iterator = blob_iterate_callback,
+			.iterator = no_meta ? blob_iterate_callback_without_meta : blob_iterate_callback_with_meta,
 		},
 	};
 

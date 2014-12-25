@@ -168,29 +168,12 @@ bool address::is_valid() const
 
 std::string address::host() const
 {
-	if (m_addr.family == AF_INET) {
-		const struct sockaddr_in *in = reinterpret_cast<const struct sockaddr_in *>(m_addr.addr);
-		return inet_ntoa(in->sin_addr);
-	} else if (m_addr.family == AF_INET6) {
-		const struct sockaddr_in6 *in = reinterpret_cast<const struct sockaddr_in6 *>(m_addr.addr);
-		char buffer[128];
-		memset(buffer, 0, sizeof(buffer));
-		snprintf(buffer, sizeof(buffer), NIP6_FMT, NIP6(in->sin6_addr));
-		return buffer;
-	}
-	return std::string();
+	return std::string(dnet_addr_host_string(&m_addr));
 }
 
 int address::port() const
 {
-	if (m_addr.family == AF_INET) {
-		const struct sockaddr_in *in = reinterpret_cast<const struct sockaddr_in *>(m_addr.addr);
-		return ntohs(in->sin_port);
-	} else if (m_addr.family == AF_INET6) {
-		const struct sockaddr_in6 *in = reinterpret_cast<const struct sockaddr_in6 *>(m_addr.addr);
-		return ntohs(in->sin6_port);
-	}
-	return 0;
+	return dnet_addr_port(&m_addr);
 }
 
 int address::family() const
@@ -200,7 +183,7 @@ int address::family() const
 
 std::string address::to_string() const
 {
-	return dnet_server_convert_dnet_addr(&m_addr);
+	return dnet_addr_string(&m_addr);
 }
 
 std::string address::to_string_with_family() const
@@ -475,7 +458,9 @@ void none(const error_info &, const std::vector<dnet_cmd> &)
 {
 }
 
-void remove_on_fail_impl(session &sess, const error_info &error, const std::vector<dnet_cmd> &statuses) {
+void remove_on_fail_impl(session &sess_, const error_info &error, const std::vector<dnet_cmd> &statuses) {
+	auto sess = sess_.clone();
+
 	logger &log = sess.get_logger();
 
 	if (statuses.size() == 0) {
@@ -1411,12 +1396,17 @@ async_write_result session::write_cache(const key &id, const argument_data &file
 std::string session::lookup_address(const key &id, int group_id)
 {
 	char buf[128];
+	struct dnet_addr addr;
+	int backend_id = -1;
+
+	memset(&addr, 0, sizeof(struct dnet_addr));
 
 	int err = dnet_lookup_addr(m_data->session_ptr,
 		id.by_id() ? NULL : id.remote().c_str(),
 		id.by_id() ? 0 : id.remote().size(),
 		id.by_id() ? &id.id() : NULL,
-		group_id, buf, sizeof(buf));
+		group_id, &addr, &backend_id);
+
 	if (err < 0) {
 		if (id.by_id()) {
 			throw_error(err, id.id(), "Failed to lookup");
@@ -1426,6 +1416,7 @@ std::string session::lookup_address(const key &id, int group_id)
 		}
 	}
 
+	dnet_addr_string_raw(&addr, buf, sizeof(buf));
 	return std::string(buf, strlen(buf));
 }
 
@@ -1809,7 +1800,7 @@ void session::update_status(const address &addr, dnet_node_status *status)
 	int err = dnet_update_status(m_data->session_ptr, &addr.to_raw(), NULL, status);
 
 	if (err < 0) {
-		throw_error(err, "%s: failed to request set status %p", dnet_server_convert_dnet_addr(&addr.to_raw()), status);
+		throw_error(err, "%s: failed to request set status %p", dnet_addr_string(&addr.to_raw()), status);
 	}
 }
 

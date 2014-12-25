@@ -132,13 +132,17 @@ uint64_t read_result_get_size(read_result_entry &result)
 	return result.io_attribute()->size;
 }
 
+uint64_t read_result_get_total_size(read_result_entry &result) {
+	return result.io_attribute()->total_size;
+}
+
 elliptics_io_attr read_result_get_io(read_result_entry &result) {
 	return elliptics_io_attr(*result.io_attribute());
 }
 
 std::string lookup_result_get_storage_address(const lookup_result_entry &result)
 {
-	return std::string(dnet_server_convert_dnet_addr(result.storage_address()));
+	return std::string(dnet_addr_string(result.storage_address()));
 }
 
 uint64_t lookup_result_get_size(const lookup_result_entry &result)
@@ -191,7 +195,7 @@ elliptics_id exec_context_get_src_id(exec_context &context)
 
 std::string exec_context_get_address(exec_context &context)
 {
-	return dnet_server_convert_dnet_addr(context.address());
+	return dnet_addr_string(context.address());
 }
 
 exec_context exec_result_get_context(exec_result_entry &result)
@@ -241,7 +245,7 @@ std::string callback_result_data(callback_result_entry &result)
 
 std::string callback_entry_address(const callback_result_entry &result)
 {
-	return dnet_server_convert_dnet_addr(result.address());
+	return dnet_addr_string(result.address());
 }
 
 int callback_entry_group_id(const callback_result_entry &result)
@@ -275,7 +279,7 @@ elliptics_id route_entry_get_id(const dnet_route_entry &entry) {
 }
 
 std::string route_entry_get_address(const dnet_route_entry &entry) {
-	return std::string(dnet_server_convert_dnet_addr(&entry.addr));
+	return std::string(dnet_addr_string(&entry.addr));
 }
 
 elliptics_time dnet_backend_status_get_last_start(const dnet_backend_status &result) {
@@ -368,6 +372,8 @@ void init_result_entry() {
 		              "Offset with which object has been read")
 		.add_property("size", read_result_get_size,
 		              "Size of read object data")
+		.add_property("total_size", read_result_get_total_size,
+		              "Total size of object data")
 		.add_property("io_attribute", read_result_get_io,
 		              "elliptics.IoAttr of read operation")
 	;
