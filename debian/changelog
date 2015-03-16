@@ -1,10 +1,16 @@
-elliptics (2.26.3.33-cocaine-rc2~) precise; urgency=low
+elliptics (2.26.3.33~cocaine-rc3) precise; urgency=low
+
+  * dependencies: using Blackhole v0.5
+
+ -- Evgeny Safronov <division494@gmail.com>  Mon, 16 Mar 2015 15:49:07 +0400
+
+elliptics (2.26.3.33~cocaine-rc2) precise; urgency=low
 
   * dependencies: proper Blackhole version
 
  -- Evgeny Safronov <division494@gmail.com>  Fri, 16 Jan 2015 17:03:55 +0400
 
-elliptics (2.26.3.33-cocaine-rc1~) unstable; urgency=low
+elliptics (2.26.3.33~cocaine-rc1) unstable; urgency=low
 
   * compat: build with cocaine v0.12
 
