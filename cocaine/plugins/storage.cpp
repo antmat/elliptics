@@ -23,6 +23,8 @@
 #include <cocaine/context.hpp>
 #include <cocaine/logging.hpp>
 
+namespace ph = std::placeholders;
+
 using namespace cocaine;
 using namespace cocaine::logging;
 using namespace cocaine::storage;
@@ -99,7 +101,7 @@ dnet_config parse_json_config(const dynamic_t::object_t& args) {
 elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &name, const dynamic_t &args) :
 	category_type(context, name, args),
 	m_context(context),
-	m_log(context.log(name)),
+	m_log(context.log(name, {{ "storage", "elliptics" }})),
 	m_log_adapter(m_log),
 	m_config(parse_json_config(args.as_object())),
 	m_node(ioremap::elliptics::logger(m_log_adapter, blackhole::attribute::set_t()), m_config),
@@ -301,7 +303,7 @@ static void on_write_finished(const elliptics_storage_t::log_ptr &log,
 		ell::data_pointer::copy(key.c_str(), key.size()));
 
 	session.set_indexes(key, index_names, index_data)
-		.connect(std::bind(on_adding_index_finished, log, handler, _2));
+		.connect(std::bind(on_adding_index_finished, log, handler, ph::_2));
 }
 
 ell::async_write_result elliptics_storage_t::async_write(const std::string &collection, const std::string &key, const std::string &blob, const std::vector<std::string> &tags)
@@ -330,7 +332,7 @@ ell::async_write_result elliptics_storage_t::async_write(const std::string &coll
 	ell::async_write_result result(session);
 	ell::async_result_handler<ell::write_result_entry> handler(result);
 
-	write_result.connect(std::bind(on_write_finished, m_log, handler, session, key, tags, _1, _2));
+	write_result.connect(std::bind(on_write_finished, m_log, handler, session, key, tags, ph::_1, ph::_2));
 
 	return result;
 }
@@ -390,7 +392,7 @@ ell::async_remove_result elliptics_storage_t::async_remove(const std::string &co
 	session.set_filter(ell::filters::all_with_ack);
 
 	session.set_indexes(key, std::vector<std::string>(), std::vector<ell::data_pointer>())
-		.connect(std::bind(on_removing_index_finished, handler, session, key, _1, _2));
+		.connect(std::bind(on_removing_index_finished, handler, session, key, ph::_1, ph::_2));
 
 	return result;
 }

@@ -28,7 +28,7 @@
 
 namespace cocaine {
 
-using namespace std::placeholders;
+namespace ph = std::placeholders;
 
 elliptics_service_t::elliptics_service_t(context_t &context, asio::io_service &reactor, const std::string &name, const dynamic_t &args) :
 	api::service_t(context, reactor, name, args),
@@ -42,14 +42,14 @@ elliptics_service_t::elliptics_service_t(context_t &context, asio::io_service &r
 		throw storage_error_t("to be able to use elliptics service, storage must be also elliptics");
 	}
 
-	on<io::storage::read  >(std::bind(&elliptics_service_t::read,   this, _1, _2));
-	on<io::storage::write >(std::bind(&elliptics_service_t::write,  this, _1, _2, _3, _4));
-	on<io::storage::remove>(std::bind(&elliptics_service_t::remove, this, _1, _2));
-	on<io::storage::find  >(std::bind(&elliptics_service_t::find,   this, _1, _2));
-	on<io::elliptics::cache_read >(std::bind(&elliptics_service_t::cache_read,  this, _1, _2));
-	on<io::elliptics::cache_write>(std::bind(&elliptics_service_t::cache_write, this, _1, _2, _3, _4));
-	on<io::elliptics::bulk_read  >(std::bind(&elliptics_service_t::bulk_read,   this, _1, _2));
-	on<io::elliptics::read_latest>(std::bind(&elliptics_service_t::read_latest, this, _1, _2));
+	on<io::storage::read  >(std::bind(&elliptics_service_t::read,   this, ph::_1, ph::_2));
+	on<io::storage::write >(std::bind(&elliptics_service_t::write,  this, ph::_1, ph::_2, ph::_3, ph::_4));
+	on<io::storage::remove>(std::bind(&elliptics_service_t::remove, this, ph::_1, ph::_2));
+	on<io::storage::find  >(std::bind(&elliptics_service_t::find,   this, ph::_1, ph::_2));
+	on<io::elliptics::cache_read >(std::bind(&elliptics_service_t::cache_read,  this, ph::_1, ph::_2));
+	on<io::elliptics::cache_write>(std::bind(&elliptics_service_t::cache_write, this, ph::_1, ph::_2, ph::_3, ph::_4));
+	on<io::elliptics::bulk_read  >(std::bind(&elliptics_service_t::bulk_read,   this, ph::_1, ph::_2));
+	on<io::elliptics::read_latest>(std::bind(&elliptics_service_t::read_latest, this, ph::_1, ph::_2));
 }
 
 deferred<std::string> elliptics_service_t::read(const std::string &collection, const std::string &key)
@@ -58,7 +58,7 @@ deferred<std::string> elliptics_service_t::read(const std::string &collection, c
 	deferred<std::string> promise;
 
 	m_elliptics->async_read(collection, key).connect(std::bind(&elliptics_service_t::on_read_completed,
-		promise, _1, _2));
+		promise, ph::_1, ph::_2));
 
 	return promise;
 }
@@ -69,7 +69,7 @@ deferred<std::string> elliptics_service_t::read_latest(const std::string &collec
 	deferred<std::string> promise;
 
 	m_elliptics->async_read_latest(collection, key).connect(std::bind(&elliptics_service_t::on_read_completed,
-		promise, _1, _2));
+		promise, ph::_1, ph::_2));
 
 	return promise;
 }
@@ -80,7 +80,7 @@ deferred<void> elliptics_service_t::write(const std::string &collection, const s
 	deferred<void> promise;
 
 	m_elliptics->async_write(collection, key, blob, tags).connect(std::bind(&elliptics_service_t::on_write_completed,
-		promise, _1, _2));
+		promise, ph::_1, ph::_2));
 
 	return promise;
 }
@@ -91,7 +91,7 @@ deferred<std::vector<std::string> > elliptics_service_t::find(const std::string 
 	deferred<std::vector<std::string> > promise;
 
 	m_elliptics->async_find(collection, tags).connect(std::bind(&elliptics_service_t::on_find_completed,
-		promise, _1, _2));
+		promise, ph::_1, ph::_2));
 
 	return promise;
 }
@@ -102,7 +102,7 @@ deferred<void> elliptics_service_t::remove(const std::string &collection, const 
 	deferred<void> promise;
 
 	m_elliptics->async_remove(collection, key).connect(std::bind(&elliptics_service_t::on_remove_completed,
-		promise, _1, _2));
+		promise, ph::_1, ph::_2));
 
 	return promise;
 }
@@ -112,7 +112,7 @@ deferred<std::string> elliptics_service_t::cache_read(const std::string &collect
 	deferred<std::string> promise;
 
 	m_elliptics->async_cache_read(collection, key).connect(std::bind(&elliptics_service_t::on_read_completed,
-		promise, _1, _2));
+		promise, ph::_1, ph::_2));
 
 	return promise;
 }
@@ -123,7 +123,7 @@ deferred<void> elliptics_service_t::cache_write(const std::string &collection, c
 	deferred<void> promise;
 
 	m_elliptics->async_cache_write(collection, key, blob, timeout).connect(std::bind(&elliptics_service_t::on_write_completed,
-		promise, _1, _2));
+		promise, ph::_1, ph::_2));
 
 	return promise;
 }
@@ -134,7 +134,7 @@ deferred<std::map<std::string, std::string> > elliptics_service_t::bulk_read(con
 
 	auto result = m_elliptics->async_bulk_read(collection, keys);
 	result.first.connect(std::bind(&elliptics_service_t::on_bulk_read_completed,
-		promise, std::move(result.second), _1, _2));
+		promise, std::move(result.second), ph::_1, ph::_2));
 
 	return promise;
 }
