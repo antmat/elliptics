@@ -11,9 +11,9 @@ PYTHON_LIB_PATH := "$(shell python -c 'from distutils import sysconfig; print sy
 
 DEB_CMAKE_EXTRA_FLAGS := -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
-DEB_DH_STRIP_ARGS := --dbg-package=elliptics-dbg
-DEB_DH_MAKESHLIBS_ARGS_elliptics := -V "elliptics (>= $(ELLIPTICS_VERSION)), elliptics (<< $(ELLIPTICS_NEXT_VERSION))"
-DEB_DH_MAKESHLIBS_ARGS_elliptics-client := -V "elliptics-client (>= $(ELLIPTICS_VERSION)), elliptics-client (<< $(ELLIPTICS_NEXT_VERSION))"
+DEB_DH_STRIP_ARGS := --dbg-package=elliptics-cocaine-v12-dbg
+DEB_DH_MAKESHLIBS_ARGS_elliptics-cocaine-v12 := -V "elliptics-cocaine-v12 (>= $(ELLIPTICS_VERSION)), elliptics-cocaine-v12 (<< $(ELLIPTICS_NEXT_VERSION))"
+DEB_DH_MAKESHLIBS_ARGS_elliptics-client-cocaine-v12 := -V "elliptics-client-cocaine-v12 (>= $(ELLIPTICS_VERSION)), elliptics-client-cocaine-v12 (<< $(ELLIPTICS_NEXT_VERSION))"
 DEB_COMPRESS_EXCLUDE := .conf
 #DEB_MAKE_CHECK_TARGET=test
 
@@ -25,7 +25,7 @@ ifeq ($(version), 10)
 	include debian/lucid.mk
 endif
 
-DEB_PYTHON2_MODULE_PACKAGES := elliptics-client
+DEB_PYTHON2_MODULE_PACKAGES := elliptics-client-cocaine-v12
 
 DEB_PYTHON_INSTALL_ARGS_ALL = --install-layout=deb --install-lib=$(PYTHON_LIB_PATH)
 include /usr/share/cdbs/1/class/python-distutils.mk
