@@ -28,24 +28,27 @@ Standards-Version: 3.8.0
 Homepage: http://www.ioremap.net/projects/elliptics
 XS-Python-Version: >= 2.6
 
-Package: elliptics
+Package: elliptics-cocaine-v12
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, eblob (>= 0.22.13-1), elliptics-client (= ${Source-Version}), libcocaine-core3, handystats (>= 1.10.0)
-Replaces: elliptics-2.10, srw
-Provides: elliptics-2.10
+Depends: ${shlibs:Depends}, ${misc:Depends}, eblob (>= 0.22.13-1), elliptics-client-cocaine-v12 (= ${Source-Version}), libcocaine-core3, handystats (>= 1.10.0)
+Replaces: elliptics-2.10, srw, elliptics
+Provides: elliptics-2.10, elliptics
+Conflicts: elliptics
 Description: Distributed hash table storage
  Elliptics network is a fault tolerant distributed hash table object storage.
 
-Package: elliptics-client
+Package: elliptics-client-cocaine-v12
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, msgpack-python | python-msgpack, handystats (>= 1.10.0)
-Replaces: elliptics-2.10
+Replaces: elliptics-2.10, elliptics-client
+Provides: elliptics-client
+Conflicts: elliptics-client
 Description: Distributed hash table storage (client library)
  Elliptics network is a fault tolerant distributed hash table object storage.
 
 Package: libcocaine-plugin-elliptics3
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, elliptics-client (= ${Source-Version})
+Depends: ${shlibs:Depends}, ${misc:Depends}, elliptics-client-cocaine-v12 (= ${Source-Version})
 Description: Distributed hash table storage (cocaine plugin)
  Elliptics network is a fault tolerant distributed hash table object storage.
 
@@ -55,17 +58,21 @@ Depends: ${shlibs:Depends}, ${misc:Depends}, cocaine-framework-native-dev (>= 0.
 Description: Distributed hash table storage (cocaine plugin includes)
  Elliptics network is a fault tolerant distributed hash table object storage.
 
-Package: elliptics-dbg
+Package: elliptics-cocaine-v12-dbg
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, elliptics (= ${Source-Version}) | elliptics-client (= ${Source-Version})
-Replaces: elliptics-dbg-2.10, srw-dbg
-Provides: elliptics-dbg-2.10
+Depends: ${shlibs:Depends}, ${misc:Depends}, elliptics-cocaine-v12 (= ${Source-Version}) | elliptics-client-cocaine-v12 (= ${Source-Version})
+Replaces: elliptics-dbg-2.10, srw-dbg, elliptics-dbg
+Provides: elliptics-dbg-2.10, elliptics-dbg
+Conflicts: elliptics-dbg
 Description: Distributed hash table storage (debug files)
  Elliptics network is a fault tolerant distributed hash table object storage.
 
-Package: elliptics-dev
+Package: elliptics-cocaine-v12-dev
 Architecture: any
-Depends: elliptics-client (= ${Source-Version}), blackhole4-dev
+Depends: elliptics-client-cocaine-v12 (= ${Source-Version}), blackhole4-dev
+Replaces: elliptics-dev
+Conflicts: elliptics-dev
+Provides: elliptics-dev
 Description: Distributed hash table storage (includes)
  Elliptics network is a fault tolerant distributed hash table object storage.
 
