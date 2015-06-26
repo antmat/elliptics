@@ -39,7 +39,7 @@ elliptics_service_t::elliptics_service_t(context_t &context, asio::io_service &r
 	debug() << m_elliptics << std::endl;
 
 	if (!m_elliptics) {
-		throw storage_error_t("to be able to use elliptics service, storage must be also elliptics");
+		throw std::system_error(-1, std::generic_category(), "to be able to use elliptics service, storage must be also elliptics");
 	}
 
 	on<io::storage::read  >(std::bind(&elliptics_service_t::read,   this, ph::_1, ph::_2));
@@ -148,7 +148,7 @@ deferred<std::map<std::string, int> > elliptics_service_t::bulk_write(const std:
 
 	deferred<std::map<std::string, int> > promise;
 
-	promise.abort(ENOTSUP, "Not supported yet");
+	promise.abort(std::error_code(ENOTSUP, std::generic_category()), "Not supported yet");
 
 	return promise;
 }
@@ -158,7 +158,7 @@ void elliptics_service_t::on_read_completed(deferred<std::string> promise,
 	const ioremap::elliptics::error_info &error)
 {
 	if (error) {
-		promise.abort(-error.code(), error.message());
+		promise.abort(std::error_code(-error.code(), std::generic_category()), error.message());
 	} else {
 		promise.write(result[0].file().to_string());
 	}
@@ -169,7 +169,7 @@ void elliptics_service_t::on_write_completed(deferred<void> promise,
 	const ioremap::elliptics::error_info &error)
 {
 	if (error) {
-		promise.abort(-error.code(), error.message());
+		promise.abort(std::error_code(-error.code(), std::generic_category()), error.message());
 	} else {
 		promise.close();
 	}
@@ -180,7 +180,7 @@ void elliptics_service_t::on_find_completed(deferred<std::vector<std::string> > 
 	const ioremap::elliptics::error_info &error)
 {
 	if (error) {
-		promise.abort(-error.code(), error.message());
+		promise.abort(std::error_code(-error.code(), std::generic_category()), error.message());
 	} else {
 		promise.write(storage::elliptics_storage_t::convert_list_result(result));
 	}
@@ -191,7 +191,7 @@ void elliptics_service_t::on_remove_completed(deferred<void> promise,
 	const ioremap::elliptics::error_info &error)
 {
 	if (error) {
-		promise.abort(-error.code(), error.message());
+		promise.abort(std::error_code(-error.code(), std::generic_category()), error.message());
 	} else {
 		promise.close();
 	}
@@ -203,7 +203,7 @@ void elliptics_service_t::on_bulk_read_completed(deferred<std::map<std::string, 
 	const ioremap::elliptics::error_info &error)
 {
 	if (error) {
-		promise.abort(-error.code(), error.message());
+		promise.abort(std::error_code(-error.code(), std::generic_category()), error.message());
 	} else {
 		std::map<std::string, std::string> read_result;
 
