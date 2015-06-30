@@ -1,3 +1,9 @@
+elliptics (2.26.3.33~cocaine-rc8) unstable; urgency=low
+
+  * Cocaine-plugin: add support for cocaine error categories
+
+ -- Dmitry Unkovsky <oil.crayons@gmail.com>  Fri, 26 Jun 2015 18:22:17 +0300
+
 elliptics (2.26.3.33~cocaine-rc7) unstable; urgency=low
 
   * Crutch: Rename elliptics-client to resolve conflict with cocaine.

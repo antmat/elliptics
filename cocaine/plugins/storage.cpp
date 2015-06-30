@@ -110,7 +110,7 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 	dynamic_t::array_t nodes = args.as_object().at("nodes").as_array();
 
 	if (nodes.empty()) {
-		throw storage_error_t("no nodes has been specified");
+		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "no nodes has been specified");
 	}
 
 	std::vector<ioremap::elliptics::address> remotes;
@@ -118,14 +118,18 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 		try {
 			remotes.emplace_back((*it).as_string());
 		} catch (ioremap::elliptics::error &exc) {
-			throw storage_error_t("failed to parse remote: %s", exc.what());
+			const std::string fmt("failed to parse remote: ");
+			throw std::system_error(std::make_error_code(std::errc::invalid_argument),
+									fmt + exc.what());
 		}
 	}
 
 	try {
 		m_node.add_remote(remotes);
 	} catch (ioremap::elliptics::error &exc) {
-		throw storage_error_t("failed to add remotes: %s", exc.what());
+		const std::string fmt("failed to add remotes: ");
+		throw std::system_error(std::make_error_code(std::errc::invalid_argument),
+								fmt + exc.what());
 	}
 
 	{
@@ -138,7 +142,7 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 		} else if (scn == "all") {
 			m_success_copies_num = ioremap::elliptics::checkers::all;
 		} else {
-			throw storage_error_t("unknown success-copies-num type");
+			throw std::system_error(-1001, std::generic_category(), "unknown success-copies-num type");
 		}
 	}
 
@@ -154,7 +158,7 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 
 	dynamic_t::array_t groups = args.as_object().at("groups", dynamic_t::empty_array).as_array();
 	if (groups.empty()) {
-		throw storage_error_t("no groups has been specified");
+		throw std::system_error(-1001, std::generic_category(), "no groups has been specified");
 	}
 
 	std::transform(groups.begin(), groups.end(), std::back_inserter(m_groups), std::mem_fn(&dynamic_t::as_uint));
@@ -169,7 +173,7 @@ std::string elliptics_storage_t::read(const std::string &collection, const std::
 	result.wait();
 
 	if (result.error()) {
-		throw storage_error_t(result.error().message());
+		throw std::system_error(-result.error().code(), std::generic_category(), result.error().message());
 	}
 
 	return result.get_one().file().to_string();
@@ -190,7 +194,7 @@ void elliptics_storage_t::write(const std::string &collection,
 	);
 
 	if (result.error()) {
-		throw storage_error_t(result.error().message());
+		throw std::system_error(-result.error().code(), std::generic_category(), result.error().message());
 	}
 }
 
@@ -200,7 +204,7 @@ std::vector<std::string> elliptics_storage_t::find(const std::string &collection
 	result.wait();
 
 	if (result.error()) {
-		throw storage_error_t(result.error().message());
+		throw std::system_error(-result.error().code(), std::generic_category(), result.error().message());
 	}
 
 	return convert_list_result(result.get());
@@ -212,7 +216,7 @@ void elliptics_storage_t::remove(const std::string &collection, const std::strin
 	result.wait();
 
 	if (result.error()) {
-		throw storage_error_t(result.error().message());
+		throw std::system_error(-result.error().code(), std::generic_category(), result.error().message());
 	}
 }
 
