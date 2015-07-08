@@ -1,3 +1,9 @@
+elliptics (2.26.3.33~cocaine-rc9) unstable; urgency=low
+
+  * dependencies: using Cocaine v0.12.2.1 
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 08 Jul 2015 18:34:09 +0400
+
 elliptics (2.26.3.33~cocaine-rc8) unstable; urgency=low
 
   * Cocaine-plugin: add support for cocaine error categories
