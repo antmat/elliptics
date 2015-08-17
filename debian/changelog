@@ -1,3 +1,9 @@
+elliptics (2.26.3.33~cocaine-0.12.3.7) unstable; urgency=low
+
+  * dependencies: using Cocaine v0.12.3.7
+
+ -- Evgeny Safronov <division494@gmail.com>  Mon, 17 Aug 2015 14:51:00 +0300
+ 
 elliptics (2.26.3.33~cocaine-0.12.3.4) unstable; urgency=low
 
   * dependencies: using Cocaine v0.12.3.4
