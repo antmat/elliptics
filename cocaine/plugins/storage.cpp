@@ -60,23 +60,33 @@ static dnet_log_level convert_verbosity(cocaine::logging::priorities prio) {
 	}
 }
 
-log_adapter_impl_t::log_adapter_impl_t(const std::shared_ptr<logging::log_t> &log):
+log_adapter_impl_t::log_adapter_impl_t(const std::shared_ptr<logging::log_t> &log, ioremap::elliptics::log_level level):
 	m_log(log),
-	m_formatter("%(message)s %(...::)s")
+	m_formatter("%(message)s %(...::)s"),
+	m_level(level)
 {
 }
 
 void log_adapter_impl_t::handle(const blackhole::record_t &rec)
 {
-    dnet_log_level level = rec.extract<dnet_log_level>(blackhole::keyword::severity<dnet_log_level>().name());
-    auto cocaine_level = convert_verbosity(level);
-    COCAINE_LOG(m_log, cocaine_level, "%s", m_formatter.format(rec));
+    const dnet_log_level level = rec.extract<dnet_log_level>(blackhole::keyword::severity<dnet_log_level>().name());
+
+	if (level < m_level) {
+		return;
+	}
+
+    const auto cocaine_level = convert_verbosity(level);
+
+	if(auto record = m_log->open_record(cocaine_level)) {
+        record.message(m_formatter.format(rec));
+        m_log->push(std::move(record));
+    }
 }
 
-log_adapter_t::log_adapter_t(const std::shared_ptr<logging::log_t> &log) :
+log_adapter_t::log_adapter_t(const std::shared_ptr<logging::log_t> &log, ioremap::elliptics::log_level level) :
 	ioremap::elliptics::logger_base(DNET_LOG_DEBUG)
 {
-	add_frontend(std::unique_ptr<log_adapter_impl_t>(new log_adapter_impl_t(log)));
+	add_frontend(std::unique_ptr<log_adapter_impl_t>(new log_adapter_impl_t(log, level)));
 	set_filter(convert_verbosity(log->log().verbosity()));
 }
 
@@ -101,7 +111,7 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 	category_type(context, name, args),
 	m_context(context),
 	m_log(context.log(name, {{ "storage", "elliptics" }})),
-	m_log_adapter(m_log),
+	m_log_adapter(m_log, static_cast<ioremap::elliptics::log_level>(args.as_object().at("verbosity", DNET_LOG_INFO).as_uint())),
 	m_config(parse_json_config(args.as_object())),
 	m_node(ioremap::elliptics::logger(m_log_adapter, blackhole::attribute::set_t()), m_config),
 	m_session(m_node)

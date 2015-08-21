@@ -40,19 +40,20 @@ namespace storage {
 class log_adapter_impl_t : public blackhole::base_frontend_t
 {
 	public:
-		log_adapter_impl_t(const std::shared_ptr<logging::log_t> &log);
+		log_adapter_impl_t(const std::shared_ptr<logging::log_t> &log, ioremap::elliptics::log_level level);
 
 		virtual void handle(const blackhole::record_t &record);
 
 	private:
 		std::shared_ptr<logging::log_t> m_log;
 		blackhole::formatter::string_t m_formatter;
+		ioremap::elliptics::log_level m_level;
 };
 
 class log_adapter_t : public ioremap::elliptics::logger_base
 {
 	public:
-		log_adapter_t(const std::shared_ptr<logging::log_t> &log);
+		log_adapter_t(const std::shared_ptr<logging::log_t> &log, ioremap::elliptics::log_level level);
 };
 
 class elliptics_storage_t : public api::storage_t
