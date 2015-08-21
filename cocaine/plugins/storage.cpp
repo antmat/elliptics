@@ -34,10 +34,9 @@ static cocaine::logging::priorities convert_verbosity(ioremap::elliptics::log_le
 {
 	switch (level) {
 		case DNET_LOG_DEBUG:
-			return cocaine::logging::debug;
 		case DNET_LOG_NOTICE:
 		case DNET_LOG_INFO:
-			return cocaine::logging::info;
+			return cocaine::logging::debug;
 		case DNET_LOG_WARNING:
 			return cocaine::logging::warning;
 		case DNET_LOG_ERROR:
