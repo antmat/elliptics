@@ -1,3 +1,9 @@
+elliptics (2.26.3.33-2+cocaine-0.12.3.10) unstable; urgency=low
+
+  * plugin: logging verbosity control.
+
+ -- Evgeny Safronov <division494@gmail.com>  Thu, 20 Aug 2015 19:54:41 +0300
+
 elliptics (2.26.3.33-1+cocaine-0.12.3.10) unstable; urgency=low
 
   * plugin: map Elliptics notice and info severity into Cocaine's debug.
