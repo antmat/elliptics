@@ -8,7 +8,7 @@ TARGET_LINK_LIBRARIES(elliptics-extensions ${COCAINE_LIBRARIES} elliptics_client
 
 SET_TARGET_PROPERTIES(elliptics-extensions PROPERTIES
         PREFIX ""
-        SUFFIX ".cocaine-plugin"
+        SUFFIX ".cocaine-plugin${CMAKE_SHARED_LIBRARY_SUFFIX}"
 )
 
 INSTALL(TARGETS elliptics-extensions

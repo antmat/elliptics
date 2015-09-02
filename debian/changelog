@@ -1,3 +1,9 @@
+elliptics (2.26.3.33-2+cocaine-0.12.3.11) unstable; urgency=low
+
+  * plugin: fixed plugin suffix.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 02 Sep 2015 19:59:54 +0300
+
 elliptics (2.26.3.33-1+cocaine-0.12.3.11) unstable; urgency=low
 
   * dependencies: using Cocaine v0.12.3.11 to prevent possible old inlined code.
