@@ -178,7 +178,7 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 
 std::string elliptics_storage_t::read(const std::string &collection, const std::string &key)
 {
-	auto result = async_read(collection, key);
+	auto result = async_read_latest(collection, key);
 	result.wait();
 
 	if (result.error()) {
