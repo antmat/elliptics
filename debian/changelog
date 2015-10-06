@@ -1,3 +1,9 @@
+elliptics (2.26.3.33-1+cocaine-0.12.3.18) unstable; urgency=low
+
+  * dependencies: using Cocaine v0.12.3.11 to prevent possible old inlined code.
+
+ -- Evgeny Safronov <division494@gmail.com>  Tue, 06 Oct 2015 16:13:25 +0300
+
 elliptics (2.26.3.33-1+cocaine-0.12.3.12) unstable; urgency=low
 
   * storage: use `read_latest` instead of just `read` when using storage
