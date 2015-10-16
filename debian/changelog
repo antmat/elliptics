@@ -1,3 +1,9 @@
+elliptics (2.26.3.33-2+cocaine-0.12.4.0) unstable; urgency=low
+
+  * feat(plugin): perform read latest instead of read on demand.
+
+ -- Evgeny Safronov <division494@gmail.com>  Fri, 16 Oct 2015 18:52:17 +0300
+
 elliptics (2.26.3.33-1+cocaine-0.12.4.0) unstable; urgency=low
 
   * dependencies: using Cocaine v0.12.4.0 to prevent possible old inlined code
