@@ -112,6 +112,7 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 	m_context(context),
 	m_log(context.log(name, {{ "storage", "elliptics" }})),
 	m_log_adapter(m_log, static_cast<ioremap::elliptics::log_level>(args.as_object().at("verbosity", DNET_LOG_INFO).as_uint())),
+	m_read_latest(args.as_object().at("read_latest", false).as_bool()),
 	m_config(parse_json_config(args.as_object())),
 	m_node(ioremap::elliptics::logger(m_log_adapter, blackhole::attribute::set_t()), m_config),
 	m_session(m_node)
@@ -178,7 +179,7 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 
 std::string elliptics_storage_t::read(const std::string &collection, const std::string &key)
 {
-	auto result = async_read_latest(collection, key);
+	auto result = m_read_latest ? async_read_latest(collection, key) : async_read(collection, key);
 	result.wait();
 
 	if (result.error()) {

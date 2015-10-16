@@ -100,6 +100,8 @@ class elliptics_storage_t : public api::storage_t
 		log_ptr m_log;
 
 		log_adapter_t m_log_adapter;
+		// Perform read latest operation on read request.
+		bool m_read_latest;
 		dnet_config m_config;
 		ioremap::elliptics::node m_node;
 		ioremap::elliptics::session m_session;
