@@ -1,3 +1,9 @@
+elliptics (2.26.3.33-3+cocaine-0.12.4.0) unstable; urgency=low
+
+  * fix(service): catch all deferred exceptions
+
+ -- Evgeny Safronov <division494@gmail.com>  Fri, 23 Oct 2015 18:24:03 +0300
+
 elliptics (2.26.3.33-2+cocaine-0.12.4.0) unstable; urgency=low
 
   * feat(plugin): perform read latest instead of read on demand.
