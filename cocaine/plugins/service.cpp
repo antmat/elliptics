@@ -30,6 +30,8 @@ namespace cocaine {
 
 namespace ph = std::placeholders;
 
+using namespace ioremap;
+
 elliptics_service_t::elliptics_service_t(context_t &context, asio::io_service &reactor, const std::string &name, const dynamic_t &args) :
 	api::service_t(context, reactor, name, args),
 	dispatch<io::elliptics_tag>(name),
@@ -52,110 +54,113 @@ elliptics_service_t::elliptics_service_t(context_t &context, asio::io_service &r
 	on<io::elliptics::read_latest>(std::bind(&elliptics_service_t::read_latest, this, ph::_1, ph::_2));
 }
 
-deferred<std::string> elliptics_service_t::read(const std::string &collection, const std::string &key)
-{
+deferred<std::string>
+elliptics_service_t::read(const std::string &collection, const std::string &key) {
 	debug() << "read, collection: " << collection << ", key: " << key << std::endl;
 	deferred<std::string> promise;
 
-	m_elliptics->async_read(collection, key).connect(std::bind(&elliptics_service_t::on_read_completed,
+	m_elliptics->async_read(collection, key).connect(std::bind(&on_read_completed,
 		promise, ph::_1, ph::_2));
 
 	return promise;
 }
 
-deferred<std::string> elliptics_service_t::read_latest(const std::string &collection, const std::string &key)
-{
+deferred<std::string>
+elliptics_service_t::read_latest(const std::string &collection, const std::string &key) {
 	debug() << "read_latest, collection: " << collection << ", key: " << key << std::endl;
 	deferred<std::string> promise;
 
-	m_elliptics->async_read_latest(collection, key).connect(std::bind(&elliptics_service_t::on_read_completed,
+	m_elliptics->async_read_latest(collection, key).connect(std::bind(&on_read_completed,
 		promise, ph::_1, ph::_2));
 
 	return promise;
 }
 
-deferred<void> elliptics_service_t::write(const std::string &collection, const std::string &key, const std::string &blob, const std::vector<std::string> &tags)
-{
+deferred<void>
+elliptics_service_t::write(const std::string &collection, const std::string &key, const std::string &blob, const std::vector<std::string> &tags) {
 	debug() << "write, collection: " << collection << ", key: " << key << std::endl;
 	deferred<void> promise;
 
-	m_elliptics->async_write(collection, key, blob, tags).connect(std::bind(&elliptics_service_t::on_write_completed,
+	m_elliptics->async_write(collection, key, blob, tags).connect(std::bind(&on_write_completed,
 		promise, ph::_1, ph::_2));
 
 	return promise;
 }
 
-deferred<std::vector<std::string> > elliptics_service_t::find(const std::string &collection, const std::vector<std::string> &tags)
-{
+deferred<std::vector<std::string>>
+elliptics_service_t::find(const std::string &collection, const std::vector<std::string> &tags) {
 	debug() << "lits, collection: " << collection << std::endl;
 	deferred<std::vector<std::string> > promise;
 
-	m_elliptics->async_find(collection, tags).connect(std::bind(&elliptics_service_t::on_find_completed,
+	m_elliptics->async_find(collection, tags).connect(std::bind(&on_find_completed,
 		promise, ph::_1, ph::_2));
 
 	return promise;
 }
 
-deferred<void> elliptics_service_t::remove(const std::string &collection, const std::string &key)
-{
+deferred<void>
+elliptics_service_t::remove(const std::string &collection, const std::string &key) {
 	debug() << "remove, collection: " << collection << ", key: " << key << std::endl;
 	deferred<void> promise;
 
-	m_elliptics->async_remove(collection, key).connect(std::bind(&elliptics_service_t::on_remove_completed,
+	m_elliptics->async_remove(collection, key).connect(std::bind(&on_remove_completed,
 		promise, ph::_1, ph::_2));
 
 	return promise;
 }
 
-deferred<std::string> elliptics_service_t::cache_read(const std::string &collection, const std::string &key)
-{
+deferred<std::string>
+elliptics_service_t::cache_read(const std::string &collection, const std::string &key) {
 	deferred<std::string> promise;
 
-	m_elliptics->async_cache_read(collection, key).connect(std::bind(&elliptics_service_t::on_read_completed,
+	m_elliptics->async_cache_read(collection, key).connect(std::bind(&on_read_completed,
 		promise, ph::_1, ph::_2));
 
 	return promise;
 }
 
-deferred<void> elliptics_service_t::cache_write(const std::string &collection, const std::string &key,
-	const std::string &blob, int timeout)
+deferred<void>
+elliptics_service_t::cache_write(const std::string &collection, const std::string &key, const std::string &blob, int timeout)
 {
 	deferred<void> promise;
 
-	m_elliptics->async_cache_write(collection, key, blob, timeout).connect(std::bind(&elliptics_service_t::on_write_completed,
+	m_elliptics->async_cache_write(collection, key, blob, timeout).connect(std::bind(&on_write_completed,
 		promise, ph::_1, ph::_2));
 
 	return promise;
 }
 
-deferred<std::map<std::string, std::string> > elliptics_service_t::bulk_read(const std::string &collection, const std::vector<std::string> &keys)
+deferred<std::map<std::string, std::string>>
+elliptics_service_t::bulk_read(const std::string &collection, const std::vector<std::string> &keys)
 {
-	deferred<std::map<std::string, std::string> > promise;
+	deferred<std::map<std::string, std::string>> promise;
 
 	auto result = m_elliptics->async_bulk_read(collection, keys);
-	result.first.connect(std::bind(&elliptics_service_t::on_bulk_read_completed,
+	result.first.connect(std::bind(&on_bulk_read_completed,
 		promise, std::move(result.second), ph::_1, ph::_2));
 
 	return promise;
 }
 
-deferred<std::map<std::string, int> > elliptics_service_t::bulk_write(const std::string &collection, const std::vector<std::string> &keys,
+deferred<std::map<std::string, int>>
+elliptics_service_t::bulk_write(const std::string &collection, const std::vector<std::string> &keys,
 	const std::vector<std::string> &blobs)
 {
 	(void) collection;
 	(void) keys;
 	(void) blobs;
 
-	deferred<std::map<std::string, int> > promise;
+	deferred<std::map<std::string, int>> promise;
 
 	promise.abort(std::error_code(ENOTSUP, std::generic_category()), "Not supported yet");
 
 	return promise;
 }
 
-void elliptics_service_t::on_read_completed(deferred<std::string> promise,
-	const ioremap::elliptics::sync_read_result &result,
-	const ioremap::elliptics::error_info &error)
+void
+elliptics_service_t::on_read_completed(nice_deferred<std::string> promise,
+	const elliptics::sync_read_result &result,
+	const elliptics::error_info &error)
 {
 	if (error) {
 		promise.abort(std::error_code(-error.code(), std::generic_category()), error.message());
@@ -164,9 +169,10 @@ void elliptics_service_t::on_read_completed(deferred<std::string> promise,
 	}
 }
 
-void elliptics_service_t::on_write_completed(deferred<void> promise,
-	const ioremap::elliptics::sync_write_result &,
-	const ioremap::elliptics::error_info &error)
+void
+elliptics_service_t::on_write_completed(nice_deferred<void> promise,
+	const elliptics::sync_write_result &result,
+	const elliptics::error_info &error)
 {
 	if (error) {
 		promise.abort(std::error_code(-error.code(), std::generic_category()), error.message());
@@ -175,9 +181,10 @@ void elliptics_service_t::on_write_completed(deferred<void> promise,
 	}
 }
 
-void elliptics_service_t::on_find_completed(deferred<std::vector<std::string> > promise,
-	const ioremap::elliptics::sync_find_indexes_result &result,
-	const ioremap::elliptics::error_info &error)
+void
+elliptics_service_t::on_find_completed(nice_deferred<std::vector<std::string> > promise,
+	const elliptics::sync_find_indexes_result &result,
+	const elliptics::error_info &error)
 {
 	if (error) {
 		promise.abort(std::error_code(-error.code(), std::generic_category()), error.message());
@@ -186,9 +193,10 @@ void elliptics_service_t::on_find_completed(deferred<std::vector<std::string> > 
 	}
 }
 
-void elliptics_service_t::on_remove_completed(deferred<void> promise,
-	const ioremap::elliptics::sync_remove_result &,
-	const ioremap::elliptics::error_info &error)
+void
+elliptics_service_t::on_remove_completed(nice_deferred<void> promise,
+	const elliptics::sync_remove_result &result,
+	const elliptics::error_info &error)
 {
 	if (error) {
 		promise.abort(std::error_code(-error.code(), std::generic_category()), error.message());
@@ -197,10 +205,11 @@ void elliptics_service_t::on_remove_completed(deferred<void> promise,
 	}
 }
 
-void elliptics_service_t::on_bulk_read_completed(deferred<std::map<std::string, std::string> > promise,
+void
+elliptics_service_t::on_bulk_read_completed(nice_deferred<std::map<std::string, std::string>> promise,
 	const key_name_map &keys,
-	const ioremap::elliptics::sync_read_result &result,
-	const ioremap::elliptics::error_info &error)
+	const elliptics::sync_read_result &result,
+	const elliptics::error_info &error)
 {
 	if (error) {
 		promise.abort(std::error_code(-error.code(), std::generic_category()), error.message());
@@ -224,16 +233,17 @@ void elliptics_service_t::on_bulk_read_completed(deferred<std::map<std::string, 
 	}
 }
 
-// Not implemented yet
-void elliptics_service_t::on_bulk_write_completed(deferred<std::map<std::string, int> > promise,
+void
+elliptics_service_t::on_bulk_write_completed(nice_deferred<std::map<std::string, int>> promise,
 	const key_name_map &keys,
-	const ioremap::elliptics::sync_write_result &result,
-	const ioremap::elliptics::error_info &error)
+	const elliptics::sync_write_result &result,
+	const elliptics::error_info &error)
 {
+	// Not implemented yet
 	(void) promise;
 	(void) keys;
 	(void) result;
 	(void) error;
 }
 
-}
+}  // namespace cocaine
