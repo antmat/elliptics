@@ -158,10 +158,10 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 
 	{
 		dynamic_t::object_t timeouts = args.as_object().at("timeouts", dynamic_t::empty_object).as_object();
-		m_timeouts.read   = timeouts.at("read", 5).as_uint();
-		m_timeouts.write  = timeouts.at("write", 5).as_uint();
-		m_timeouts.remove = timeouts.at("remove", 5).as_uint();
-		m_timeouts.find   = timeouts.at("find", 5).as_uint();
+		m_timeouts.read   = timeouts.at("read", 5u).as_uint();
+		m_timeouts.write  = timeouts.at("write", 5u).as_uint();
+		m_timeouts.remove = timeouts.at("remove", 5u).as_uint();
+		m_timeouts.find   = timeouts.at("find", 5u).as_uint();
 	}
 
 	dynamic_t::array_t groups = args.as_object().at("groups", dynamic_t::empty_array).as_array();
