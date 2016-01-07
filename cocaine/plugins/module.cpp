@@ -27,10 +27,14 @@ using namespace cocaine::storage;
 
 extern "C" {
 
-void initialize(api::repository_t& repository) {
-	repository.insert<elliptics_storage_t>("elliptics");
-	repository.insert<elliptics_service_t>("elliptics");
-}
+	auto
+	validation() -> api::preconditions_t {
+		return api::preconditions_t { COCAINE_MAKE_VERSION(0, 12, 0) };
+	}
+
+	void initialize(api::repository_t& repository) {
+		repository.insert<elliptics_storage_t>("elliptics");
+		repository.insert<elliptics_service_t>("elliptics");
+	}
 
 }
-

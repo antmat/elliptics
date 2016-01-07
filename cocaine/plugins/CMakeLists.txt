@@ -1,14 +1,12 @@
-ADD_LIBRARY(elliptics-extensions MODULE
-        storage service module
-        ../include/cocaine/framework/services/elliptics_storage.hpp
-        ../include/cocaine/services/elliptics_storage.hpp)
+add_library(elliptics-extensions MODULE module service storage)
 
+include_directories(BEFORE ../asio/asio/include)
 INCLUDE_DIRECTORIES(../include)
 TARGET_LINK_LIBRARIES(elliptics-extensions ${COCAINE_LIBRARIES} elliptics_client elliptics_cpp)
 
 SET_TARGET_PROPERTIES(elliptics-extensions PROPERTIES
         PREFIX ""
-        SUFFIX ".cocaine-plugin"
+        SUFFIX ".cocaine-plugin.so"
 )
 
 INSTALL(TARGETS elliptics-extensions

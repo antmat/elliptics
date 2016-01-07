@@ -41,12 +41,7 @@ include(CheckProcStats)
 include(CreateStdint)
 include(FixRpath)
 
-find_path(BLACKHOLE_INCLUDE_DIRS NAMES "blackhole/attribute.hpp" PATH_SUFFIXES)
-if (NOT BLACKHOLE_INCLUDE_DIRS)
-	message(FATAL_ERROR "Blackhole development files have not been found")
-endif()
-include_directories(${BLACKHOLE_INCLUDE_DIRS})
-
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/foreign/blackhole/src)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/monitor)
@@ -135,14 +130,14 @@ set(ELLIPTICS_LIBRARIES
     )
 
 # Build parts
-add_subdirectory(srw)
+# add_subdirectory(srw)
 add_subdirectory(cache)
 add_subdirectory(indexes)
 add_subdirectory(library)
 add_subdirectory(bindings)
 add_subdirectory(monitor)
-add_subdirectory(tests)
-add_subdirectory(example)
+# add_subdirectory(tests)
+# add_subdirectory(example)
 if(WITH_COCAINE)
     add_subdirectory(cocaine/plugins)
 endif()
@@ -211,4 +206,3 @@ if(DOXYGEN_FOUND)
 #		DESTINATION share/elliptics/doc
 #        )
 endif()
-
