@@ -23,109 +23,135 @@
 #include <cocaine/context.hpp>
 #include <cocaine/logging.hpp>
 
+#include <blackhole/formatter/string.hpp>
+#include <blackhole/v1/attribute.hpp>
+#include <blackhole/v1/logger.hpp>
+
+namespace cocaine {
+namespace storage {
+
+namespace ph = std::placeholders;
+
 using namespace cocaine;
 using namespace cocaine::logging;
 using namespace cocaine::storage;
 namespace ell = ioremap::elliptics;
 
-static cocaine::logging::priorities convert_verbosity(ioremap::elliptics::log_level level)
-{
+static auto convert(elliptics::log_level level) -> logging::priorities {
 	switch (level) {
-		case DNET_LOG_DEBUG:
-			return cocaine::logging::debug;
-		case DNET_LOG_NOTICE:
-		case DNET_LOG_INFO:
-			return cocaine::logging::info;
-		case DNET_LOG_WARNING:
-			return cocaine::logging::warning;
-		case DNET_LOG_ERROR:
-			return cocaine::logging::error;
-		default:
-			return cocaine::logging::ignore;
+	case DNET_LOG_DEBUG:
+	case DNET_LOG_NOTICE:
+	case DNET_LOG_INFO:
+		return cocaine::logging::debug;
+	case DNET_LOG_WARNING:
+		return cocaine::logging::warning;
+	case DNET_LOG_ERROR:
+		return cocaine::logging::error;
+	default:
+		return cocaine::logging::debug;
 	};
 }
 
-static dnet_log_level convert_verbosity(cocaine::logging::priorities prio) {
-	switch (prio) {
-		case cocaine::logging::debug:
-			return DNET_LOG_DEBUG;
-		case cocaine::logging::info:
-			return DNET_LOG_INFO;
-		case cocaine::logging::warning:
-			return DNET_LOG_WARNING;
-		case cocaine::logging::error:
-		default:
-			return DNET_LOG_ERROR;
+static auto convert(logging::priorities priority) -> dnet_log_level {
+	switch (priority) {
+	case logging::debug:
+		return DNET_LOG_DEBUG;
+	case logging::info:
+		return DNET_LOG_INFO;
+	case logging::warning:
+		return DNET_LOG_WARNING;
+	case logging::error:
+	default:
+		return DNET_LOG_ERROR;
 	}
 }
 
-log_adapter_impl_t::log_adapter_impl_t(const std::shared_ptr<logging::log_t> &log): m_log(log), m_formatter("%(message)s %(...L)s")
-{
-}
+class frontend_t : public blackhole::base_frontend_t {
+	std::shared_ptr<logging::logger_t> log;
+	elliptics::log_level severity;
+	blackhole::formatter::string_t formatter;
 
-void log_adapter_impl_t::handle(const blackhole::log::record_t &record)
-{
-	dnet_log_level level = record.extract<dnet_log_level>(blackhole::keyword::severity<dnet_log_level>().name());
-	auto cocaine_level = convert_verbosity(level);
-	COCAINE_LOG(m_log, cocaine_level, "elliptics: %s", m_formatter.format(record));
-}
+public:
+	frontend_t(std::shared_ptr<logging::logger_t> log, elliptics::log_level severity) :
+		log(std::move(log)),
+		severity(severity),
+		formatter("%(message)s %(...::)s")
+	{}
 
-log_adapter_t::log_adapter_t(const std::shared_ptr<logging::log_t> &log)
+	virtual void handle(const blackhole::log::record_t& record) {
+		const auto level = record.extract<dnet_log_level>(blackhole::keyword::severity<dnet_log_level>().name());
+
+		if (level < severity) {
+			return;
+		}
+
+	    const auto mapped = convert(level);
+
+		log->log(static_cast<int>(level), formatter.format(record));
+	}
+};
+
+log_adapter_t::log_adapter_t(std::shared_ptr<logging::logger_t> log, elliptics::log_level level) :
+	elliptics::logger_base()
 {
-	add_frontend(blackhole::utils::make_unique<log_adapter_impl_t>(log));
-	verbosity(convert_verbosity(log->verbosity()));
+	verbosity(DNET_LOG_DEBUG);
+	add_frontend(std::unique_ptr<frontend_t>(new frontend_t(log, level)));
 }
 
 namespace {
 
-dnet_config parse_json_config(const Json::Value& args) {
+dnet_config parse_json_config(const dynamic_t::object_t& args) {
 	dnet_config cfg;
 
 	std::memset(&cfg, 0, sizeof(cfg));
 
-	cfg.wait_timeout   = args.get("wait-timeout", 5).asInt();
-	cfg.check_timeout  = args.get("check-timeout", 20).asInt();
-	cfg.io_thread_num  = args.get("io-thread-num", 0).asUInt();
-	cfg.net_thread_num = args.get("net-thread-num", 0).asUInt();
-	cfg.flags          = args.get("flags", 0).asInt();
-
+	cfg.wait_timeout   = args.at("wait-timeout", 5).as_uint();
+	cfg.check_timeout  = args.at("check-timeout", 20).as_uint();
+	cfg.io_thread_num  = args.at("io-thread-num", 0).as_uint();
+	cfg.net_thread_num = args.at("net-thread-num", 0).as_uint();
+	cfg.flags          = args.at("flags", 0).as_uint();
 	return cfg;
 }
 
 }
 
-elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &name, const Json::Value &args) :
+elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &name, const dynamic_t &args) :
 	category_type(context, name, args),
 	m_context(context),
-	m_log(new log_t(context, name)),
-	m_log_adapter(m_log),
-	m_config(parse_json_config(args)),
-	m_node(ioremap::elliptics::logger(m_log_adapter, blackhole::log::attributes_t()), m_config),
+	m_log(context.log(name)), // TODO: It was with attributes: {{"storage", "elliptics"}}.
+	m_log_adapter(m_log, static_cast<ioremap::elliptics::log_level>(args.as_object().at("verbosity", DNET_LOG_INFO).as_uint())),
+	m_read_latest(args.as_object().at("read_latest", false).as_bool()),
+	m_config(parse_json_config(args.as_object())),
+	m_node(elliptics::logger(m_log_adapter, {}), m_config),
 	m_session(m_node)
 {
-	Json::Value nodes(args["nodes"]);
+	dynamic_t::array_t nodes = args.as_object().at("nodes").as_array();
 
-	if (nodes.empty() || !nodes.isArray()) {
-		throw storage_error_t("no nodes has been specified");
+	if (nodes.empty()) {
+		throw std::system_error(std::make_error_code(std::errc::invalid_argument), "no nodes has been specified");
 	}
 
 	std::vector<ioremap::elliptics::address> remotes;
 	for (auto it = nodes.begin(); it != nodes.end(); ++it) {
 		try {
-			remotes.emplace_back((*it).asString());
+			remotes.emplace_back((*it).as_string());
 		} catch (ioremap::elliptics::error &exc) {
-			throw storage_error_t("failed to parse remote: %s", exc.what());
+			const std::string fmt("failed to parse remote: ");
+			throw std::system_error(std::make_error_code(std::errc::invalid_argument),
+									fmt + exc.what());
 		}
 	}
 
 	try {
 		m_node.add_remote(remotes);
 	} catch (ioremap::elliptics::error &exc) {
-		throw storage_error_t("failed to add remotes: %s", exc.what());
+		const std::string fmt("failed to add remotes: ");
+		throw std::system_error(std::make_error_code(std::errc::invalid_argument),
+								fmt + exc.what());
 	}
 
 	{
-		auto scn = args.get("success-copies-num", "any");
+		auto scn = args.as_object().at("success-copies-num", "any").as_string();
 
 		if (scn == "any") {
 			m_success_copies_num = ioremap::elliptics::checkers::at_least_one;
@@ -134,44 +160,35 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 		} else if (scn == "all") {
 			m_success_copies_num = ioremap::elliptics::checkers::all;
 		} else {
-			throw storage_error_t("unknown success-copies-num type");
+			throw std::system_error(-1001, std::generic_category(), "unknown success-copies-num type");
 		}
 	}
 
 	{
-		auto timeouts = args["timeouts"];
-
-		if (!timeouts.empty()) {
-			if (!timeouts.isObject()) {
-				throw storage_error_t("invalid format of timeouts");
-			}
-
-			m_timeouts.read = timeouts.get("read", 5).asInt();
-			m_timeouts.write = timeouts.get("write", 5).asInt();
-			m_timeouts.remove = timeouts.get("remove", 5).asInt();
-			m_timeouts.find = timeouts.get("find", 5).asInt();
-		}
+		dynamic_t::object_t timeouts = args.as_object().at("timeouts", dynamic_t::empty_object).as_object();
+		m_timeouts.read   = timeouts.at("read", 5u).as_uint();
+		m_timeouts.write  = timeouts.at("write", 5u).as_uint();
+		m_timeouts.remove = timeouts.at("remove", 5u).as_uint();
+		m_timeouts.find   = timeouts.at("find", 5u).as_uint();
 	}
 
-	Json::Value groups(args["groups"]);
-
-	if (groups.empty() || !groups.isArray()) {
-		throw storage_error_t("no groups has been specified");
+	dynamic_t::array_t groups = args.as_object().at("groups", dynamic_t::empty_array).as_array();
+	if (groups.empty()) {
+		throw std::system_error(-1001, std::generic_category(), "no groups has been specified");
 	}
 
-	std::transform(groups.begin(), groups.end(), std::back_inserter(m_groups), std::mem_fn(&Json::Value::asInt));
+	std::transform(groups.begin(), groups.end(), std::back_inserter(m_groups), std::mem_fn(&dynamic_t::as_uint));
 
 	m_session.set_groups(m_groups);
 	m_session.set_exceptions_policy(ell::session::no_exceptions);
 }
 
-std::string elliptics_storage_t::read(const std::string &collection, const std::string &key)
-{
-	auto result = async_read(collection, key);
+std::string elliptics_storage_t::read(const std::string &collection, const std::string &key) {
+	auto result = m_read_latest ? async_read_latest(collection, key) : async_read(collection, key);
 	result.wait();
 
 	if (result.error()) {
-		throw storage_error_t(result.error().message());
+		throw std::system_error(-result.error().code(), std::generic_category(), result.error().message());
 	}
 
 	return result.get_one().file().to_string();
@@ -192,7 +209,7 @@ void elliptics_storage_t::write(const std::string &collection,
 	);
 
 	if (result.error()) {
-		throw storage_error_t(result.error().message());
+		throw std::system_error(-result.error().code(), std::generic_category(), result.error().message());
 	}
 }
 
@@ -202,7 +219,7 @@ std::vector<std::string> elliptics_storage_t::find(const std::string &collection
 	result.wait();
 
 	if (result.error()) {
-		throw storage_error_t(result.error().message());
+		throw std::system_error(-result.error().code(), std::generic_category(), result.error().message());
 	}
 
 	return convert_list_result(result.get());
@@ -214,7 +231,7 @@ void elliptics_storage_t::remove(const std::string &collection, const std::strin
 	result.wait();
 
 	if (result.error()) {
-		throw storage_error_t(result.error().message());
+		throw std::system_error(-result.error().code(), std::generic_category(), result.error().message());
 	}
 }
 
@@ -305,7 +322,7 @@ static void on_write_finished(const elliptics_storage_t::log_ptr &log,
 		ell::data_pointer::copy(key.c_str(), key.size()));
 
 	session.set_indexes(key, index_names, index_data)
-		.connect(std::bind(on_adding_index_finished, log, handler, _2));
+		.connect(std::bind(on_adding_index_finished, log, handler, ph::_2));
 }
 
 ell::async_write_result elliptics_storage_t::async_write(const std::string &collection, const std::string &key, const std::string &blob, const std::vector<std::string> &tags)
@@ -334,7 +351,7 @@ ell::async_write_result elliptics_storage_t::async_write(const std::string &coll
 	ell::async_write_result result(session);
 	ell::async_result_handler<ell::write_result_entry> handler(result);
 
-	write_result.connect(std::bind(on_write_finished, m_log, handler, session, key, tags, _1, _2));
+	write_result.connect(std::bind(on_write_finished, m_log, handler, session, key, tags, ph::_1, ph::_2));
 
 	return result;
 }
@@ -394,7 +411,7 @@ ell::async_remove_result elliptics_storage_t::async_remove(const std::string &co
 	session.set_filter(ell::filters::all_with_ack);
 
 	session.set_indexes(key, std::vector<std::string>(), std::vector<ell::data_pointer>())
-		.connect(std::bind(on_removing_index_finished, handler, session, key, _1, _2));
+		.connect(std::bind(on_removing_index_finished, handler, session, key, ph::_1, ph::_2));
 
 	return result;
 }
@@ -507,3 +524,6 @@ std::vector<std::string> elliptics_storage_t::convert_list_result(const ioremap:
 
 	return promise_result;
 }
+
+}  // namespace storage
+}  // namespace cocaine

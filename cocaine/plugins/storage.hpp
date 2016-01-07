@@ -1,6 +1,7 @@
 /*
  * Copyright 2013+ Ruslan Nigmatullin <euroelessar@yandex.ru>
  * Copyright 2011-2012 Andrey Sibiryov <me@kobology.ru>
+ * Copyright 2014-2016 Evgeny Safronov <division494@gmail.com>
  *
  * This file is part of Elliptics.
  *
@@ -21,15 +22,13 @@
 #ifndef COCAINE_ELLIPTICS_STORAGE_HPP
 #define COCAINE_ELLIPTICS_STORAGE_HPP
 
-#include <cocaine/api/storage.hpp>
+#include <blackhole/record.hpp>
+
 #include <cocaine/api/service.hpp>
-#include <cocaine/rpc/slots/deferred.hpp>
+#include <cocaine/api/storage.hpp>
+#include <cocaine/rpc/dispatch.hpp>
 
 #include "elliptics/cppdef.h"
-
-#define BOOST_BIND_NO_PLACEHOLDERS
-#include <blackhole/formatter/string.hpp>
-#undef BOOST_BIND_NO_PLACEHOLDERS
 
 namespace cocaine {
 
@@ -37,83 +36,78 @@ class elliptics_service_t;
 
 namespace storage {
 
-class log_adapter_impl_t : public blackhole::base_frontend_t
-{
-	public:
-		log_adapter_impl_t(const std::shared_ptr<logging::log_t> &log);
+using namespace ioremap;
 
-		virtual void handle(const blackhole::log::record_t &record);
+}  // namespace storage
+}  // namespace cocaine
 
-	private:
-		std::shared_ptr<logging::log_t> m_log;
-		blackhole::formatter::string_t m_formatter;
+namespace cocaine {
+namespace storage {
+
+/// Wraps the v1.0 logger into the v0.2 interface to be usable within Elliptics.
+class log_adapter_t : public elliptics::logger_base {
+public:
+	log_adapter_t(std::shared_ptr<logging::logger_t> wrapped, elliptics::log_level severity);
 };
 
-class log_adapter_t : public ioremap::elliptics::logger_base
-{
-	public:
-		log_adapter_t(const std::shared_ptr<logging::log_t> &log);
-};
+class elliptics_storage_t : public api::storage_t {
+public:
+	typedef api::storage_t category_type;
+	typedef std::shared_ptr<logging::logger_t> log_ptr;
+	typedef std::map<dnet_raw_id, std::string, ioremap::elliptics::dnet_raw_id_less_than<>> key_name_map;
 
-class elliptics_storage_t : public api::storage_t
-{
-	public:
-		typedef api::storage_t category_type;
-		typedef std::shared_ptr<logging::log_t> log_ptr;
-		typedef std::map<dnet_raw_id, std::string, ioremap::elliptics::dnet_raw_id_less_than<> > key_name_map;
+	elliptics_storage_t(context_t &context, const std::string &name, const dynamic_t &args);
 
-		elliptics_storage_t(context_t &context,
-			const std::string &name,
-			const Json::Value &args);
+	std::string read(const std::string &collection, const std::string &key);
+	void write(const std::string &collection, const std::string &key, const std::string &blob, const std::vector<std::string> &tags);
+	std::vector<std::string> find(const std::string &collection, const std::vector<std::string> &tags);
+	void remove(const std::string &collection, const std::string &key);
 
-		std::string read(const std::string &collection, const std::string &key);
-		void write(const std::string &collection, const std::string &key, const std::string &blob, const std::vector<std::string> &tags);
-		std::vector<std::string> find(const std::string &collection, const std::vector<std::string> &tags);
-		void remove(const std::string &collection, const std::string &key);
+protected:
+	ioremap::elliptics::async_read_result async_read(const std::string &collection, const std::string &key);
+	ioremap::elliptics::async_write_result async_write(const std::string &collection, const std::string &key,
+		const std::string &blob, const std::vector<std::string> &tags);
+	ioremap::elliptics::async_find_indexes_result async_find(const std::string &collection, const std::vector<std::string> &tags);
+	ioremap::elliptics::async_remove_result async_remove(const std::string &collection, const std::string &key);
+	ioremap::elliptics::async_read_result async_cache_read(const std::string &collection, const std::string &key);
+	ioremap::elliptics::async_write_result async_cache_write(const std::string &collection, const std::string &key,
+		const std::string &blob, int timeout);
+	std::pair<ioremap::elliptics::async_read_result, key_name_map> async_bulk_read(const std::string &collection, const std::vector<std::string> &keys);
+	ioremap::elliptics::async_write_result async_bulk_write(const std::string &collection, const std::vector<std::string> &keys,
+		const std::vector<std::string> &blobs);
+	ioremap::elliptics::async_read_result async_read_latest(const std::string &collection, const std::string &key);
 
-	protected:
-		ioremap::elliptics::async_read_result async_read(const std::string &collection, const std::string &key);
-		ioremap::elliptics::async_write_result async_write(const std::string &collection, const std::string &key,
-			const std::string &blob, const std::vector<std::string> &tags);
-		ioremap::elliptics::async_find_indexes_result async_find(const std::string &collection, const std::vector<std::string> &tags);
-		ioremap::elliptics::async_remove_result async_remove(const std::string &collection, const std::string &key);
-		ioremap::elliptics::async_read_result async_cache_read(const std::string &collection, const std::string &key);
-		ioremap::elliptics::async_write_result async_cache_write(const std::string &collection, const std::string &key,
-			const std::string &blob, int timeout);
-		std::pair<ioremap::elliptics::async_read_result, key_name_map> async_bulk_read(const std::string &collection, const std::vector<std::string> &keys);
-		ioremap::elliptics::async_write_result async_bulk_write(const std::string &collection, const std::vector<std::string> &keys,
-			const std::vector<std::string> &blobs);
-		ioremap::elliptics::async_read_result async_read_latest(const std::string &collection, const std::string &key);
+	static std::vector<std::string> convert_list_result(const ioremap::elliptics::sync_find_indexes_result &result);
 
-		static std::vector<std::string> convert_list_result(const ioremap::elliptics::sync_find_indexes_result &result);
+private:
+	std::string id(const std::string &collection,
+	const std::string &key)
+	{
+		return collection + '\0' + key;
+	}
 
-	private:
-		std::string id(const std::string &collection,
-		const std::string &key)
-		{
-			return collection + '\0' + key;
-		}
+private:
+	context_t &m_context;
+	log_ptr m_log;
 
-	private:
-		context_t &m_context;
-		log_ptr m_log;
+	log_adapter_t m_log_adapter;
+	// Perform read latest operation on read request.
+	bool m_read_latest;
+	dnet_config m_config;
+	ioremap::elliptics::node m_node;
+	ioremap::elliptics::session m_session;
+	ioremap::elliptics::result_checker m_success_copies_num;
 
-		log_adapter_t m_log_adapter;
-		dnet_config m_config;
-		ioremap::elliptics::node m_node;
-		ioremap::elliptics::session m_session;
-		ioremap::elliptics::result_checker m_success_copies_num;
+	struct {
+		int read;
+		int write;
+		int remove;
+		int find;
+	} m_timeouts;
 
-		struct {
-			int read;
-			int write;
-			int remove;
-			int find;
-		} m_timeouts;
+	std::vector<int> m_groups;
 
-		std::vector<int> m_groups;
-
-		friend class cocaine::elliptics_service_t;
+	friend class cocaine::elliptics_service_t;
 };
 
 }}
