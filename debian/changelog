@@ -1,3 +1,10 @@
+elliptics (2.26.9.3+nmu1) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * package: fixed install section
+
+ -- Evgeny Safronov <division494@gmail.com>  Tue, 26 Jan 2016 17:09:21 +0300
+
 elliptics (2.26.9.3) unstable; urgency=low
 
   * package: depend on eblob 0.23.11+, which contains new iterator flag to verify checksum

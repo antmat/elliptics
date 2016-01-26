@@ -11,7 +11,7 @@ PYTHON_LIB_PATH := "$(shell python -c 'from distutils import sysconfig; print sy
 
 DEB_CMAKE_EXTRA_FLAGS := -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
-DEB_DH_STRIP_ARGS := --dbg-package=elliptics-cocaine-v12-dbg
+# DEB_DH_STRIP_ARGS := --dbg-package=elliptics-cocaine-v12-dbg
 DEB_DH_MAKESHLIBS_ARGS_elliptics := -V "elliptics-cocaine-v12 (>= $(ELLIPTICS_VERSION)), elliptics-cocaine-v12 (<< $(ELLIPTICS_NEXT_VERSION))"
 DEB_DH_MAKESHLIBS_ARGS_elliptics-client := -V "elliptics-client-cocaine-v12 (>= $(ELLIPTICS_VERSION)), elliptics-client-cocaine-v12 (<< $(ELLIPTICS_NEXT_VERSION))"
 DEB_COMPRESS_EXCLUDE := .conf
