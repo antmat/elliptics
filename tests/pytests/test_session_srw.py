@@ -94,7 +94,7 @@ class TestSession:
         assert len(error) > 0
         return results, error[0]
 
-    # exec_func helps parameterize tests with different styles of using Session.exec_
+    # exec_func helps parametrize tests with different styles of using Session.exec_
     @pytest.fixture(scope='function', params=[exec_sync, exec_async_i, exec_async_cb])
     def exec_func(self, request):
         return request.param

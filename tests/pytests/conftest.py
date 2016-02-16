@@ -88,7 +88,7 @@ def connect(endpoints, groups, **kw):
         if old in kw:
             kw[new] = kw.pop(old)
 
-    # drop impedeing attrs, just in case
+    # drop impeding attrs, just in case
     kw.pop('elog', None)
     kw.pop('cfg', None)
     kw.pop('remotes', None)

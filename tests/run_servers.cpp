@@ -420,7 +420,7 @@ static int run_servers(const rapidjson::Value &doc)
 
 	setup_signals();
 
-	test::log << "Succesffully started all servers" << test::endl;
+	test::log << "Successfully started all servers" << test::endl;
 
 	while (global_data)
 		sleep(1);

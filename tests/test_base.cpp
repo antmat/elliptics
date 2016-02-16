@@ -909,7 +909,7 @@ nodes_data::ptr start_nodes(start_nodes_config &start_config) {
 
 		start_config.debug_stream << "Started server #" << (i + 1) << std::endl;
 
-		// this is needed to prevent simultanously started servers with exactly the same config
+		// this is needed to prevent simultaneously started servers with exactly the same config
 		// they will connect to each other and simultaneously sent JOIN request,
 		// which all will fail. Eventually they will reconnect, but some tests may already fail
 		// to that time.
@@ -963,7 +963,7 @@ nodes_data::ptr start_nodes(start_nodes_config &start_config) {
 				auto storage = manager->get_service<storage_service_t>("storage");
 				(void) storage;
 
-				start_config.debug_stream << "Succesfully connected to Cocaine #" << (i + 1) << std::endl;
+				start_config.debug_stream << "Successfully connected to Cocaine #" << (i + 1) << std::endl;
 			} catch (std::exception &) {
 				any_failed = true;
 				break;
