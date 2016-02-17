@@ -58,7 +58,9 @@ typedef ioremap::elliptics::log_level dnet_log_level;
 #define ELLIPTICS_LOG_LEVEL ioremap::elliptics::log_level
 
 extern "C" {
-#else
+
+#else // __cplusplus
+
 typedef struct cpp_ioremap_elliptics_logger dnet_logger;
 typedef struct cpp_blackhole_log_record_t dnet_logger_record;
 
@@ -73,7 +75,7 @@ enum dnet_log_level {
 
 #define ELLIPTICS_LOG_LEVEL enum dnet_log_level
 
-#endif
+#endif // __cplusplus
 
 struct dnet_node;
 
@@ -90,11 +92,10 @@ void dnet_log_write(dnet_logger *logger, dnet_logger_record *record, const char 
 void dnet_log_write_err(dnet_logger *logger, dnet_logger_record *record, int err, const char *format, ...) __attribute__ ((format(printf, 4, 5)));
 void dnet_log_close_record(dnet_logger_record *record);
 
-#undef ELLIPTICS_LOG_LEVEL
-
 #ifdef __cplusplus
-}
+} // extern "C"
+#endif // __cplusplus
 
-#endif
+#undef ELLIPTICS_LOG_LEVEL
 
 #endif // __IOREMAP_LOGGER_HPP

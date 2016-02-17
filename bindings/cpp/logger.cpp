@@ -286,7 +286,10 @@ void dnet_log_write_err(dnet_logger *logger, dnet_logger_record *record, int err
 
 void dnet_log_close_record(dnet_logger_record *record)
 {
-	record->~record_t();
+	//FIXME: this check is required to avoid double-free error
+	if (record->valid()) {
+		record->~record_t();
+	}
 }
 
 
