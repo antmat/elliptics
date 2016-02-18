@@ -44,7 +44,6 @@
 #include <cocaine/api/storage.hpp>
 
 #include <elliptics/interface.h>
-#include <elliptics/srw.h>
 #include <elliptics/utils.hpp>
 
 #include "elliptics.h"
@@ -53,6 +52,9 @@
 
 #include "cocaine/actor.hpp"
 #include "localnode.hpp"
+
+
+#include "elliptics/srw.h"
 
 #define SRW_LOG(__log__, __level__, __app__, ...) \
 	BH_LOG((__log__), (__level__), __VA_ARGS__) \
@@ -624,61 +626,66 @@ class srw {
 
 int dnet_srw_init(struct dnet_node *n, struct dnet_config *cfg)
 {
-	int err = 0;
-
 	try {
-		n->srw = (void *)new srw(n, cfg->srw.config);
-		dnet_log(n, DNET_LOG_INFO, "srw: initialized: config: %s", cfg->srw.config);
+		dnet_log(n, DNET_LOG_INFO, "srw: init, config: %s", cfg->srw.config);
+		n->srw = new ioremap::elliptics::srw(n, cfg->srw.config);
+		dnet_log(n, DNET_LOG_INFO, "srw: init done, config: %s", cfg->srw.config);
 		return 0;
-	} catch (const std::exception &e) {
-		dnet_log(n, DNET_LOG_ERROR, "srw: init failed: config: %s, exception: %s", cfg->srw.config, e.what());
-		err = -ENOMEM;
-	}
 
-	return err;
+	} catch (const cocaine::error_t &e) {
+		dnet_log(n, DNET_LOG_ERROR, "srw: init failed, config: %s, config error: %s", cfg->srw.config, e.what());
+		return -EINVAL;
+
+	} catch (const std::system_error &e) {
+		dnet_log(n, DNET_LOG_ERROR, "srw: init failed, config: %s, exception: %s", cfg->srw.config, e.what());
+		return -ENOMEM;
+	}
 }
 
 void dnet_srw_cleanup(struct dnet_node *n)
 {
 	if (n->srw) {
 		try {
-			srw *sr = (srw *)n->srw;
-			delete sr;
+			auto *srw = static_cast<ioremap::elliptics::srw*>(n->srw);
+			delete srw;
+
 		} catch (...) {
+			//TODO: add logging
 		}
 
 		n->srw = NULL;
 	}
 }
 
-int dnet_cmd_exec_raw(struct dnet_net_state *st, struct dnet_cmd *cmd, struct sph *header, const void *data)
+int dnet_cmd_exec(struct dnet_net_state *st, struct dnet_cmd *cmd, const void *payload)
 {
 	struct dnet_node *n = st->n;
-	srw *s = (srw *)n->srw;
+	auto *srw = static_cast<ioremap::elliptics::srw*>(n->srw);
 
-	if (!s)
+	if (!srw)
 		return -ENOTSUP;
 
 	try {
-		return s->process(st, cmd, header);
-	} catch (const std::exception &e) {
-		dnet_log(n, DNET_LOG_ERROR, "%s: srw-processing: event: %.*s, data-size: %lld, exception: %s",
-				dnet_dump_id(&cmd->id), header->event_size, (const char *)data,
-				(unsigned long long)header->data_size,
-				e.what());
-	}
+		return srw->process(st, cmd, payload);
 
-	return -EINVAL;
+	} catch (...) {
+		dnet_log(n, DNET_LOG_ERROR, "srw: processing failed by unknown reason");
+		return -EINVAL;
+	}
 }
 
-int dnet_srw_update(struct dnet_node *, int )
+int dnet_srw_update(struct dnet_node *, int)
 {
 	return 0;
 }
-#else
+
+#else // HAVE_COCAINE_SUPPORT = 0
+
+// cocaine support disabled
+
 #include <errno.h>
 
-#include "elliptics.h"
+#include "elliptics/srw.h"
 
 int dnet_srw_init(struct dnet_node *, struct dnet_config *)
 {
@@ -689,7 +696,7 @@ void dnet_srw_cleanup(struct dnet_node *)
 {
 }
 
-int dnet_cmd_exec_raw(struct dnet_net_state *, struct dnet_cmd *, struct sph *, const void *)
+int dnet_cmd_exec(struct dnet_net_state *, struct dnet_cmd *, const void *)
 {
 	return -ENOTSUP;
 }
@@ -698,4 +705,5 @@ int dnet_srw_update(struct dnet_node *, int)
 {
 	return 0;
 }
-#endif
+
+#endif // HAVE_COCAINE_SUPPORT

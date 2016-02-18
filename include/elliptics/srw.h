@@ -59,7 +59,15 @@ struct srw_init_ctl {
 };
 
 struct dnet_node;
+struct dnet_config;
+struct dnet_net_state;
+struct dnet_cmd;
+
+// C interface
+int dnet_srw_init(struct dnet_node *n, struct dnet_config *cfg);
+void dnet_srw_cleanup(struct dnet_node *n);
 int dnet_srw_update(struct dnet_node *n, int pid);
+int dnet_cmd_exec(struct dnet_net_state *st, struct dnet_cmd *cmd, const void *data);
 
 #ifdef __cplusplus
 }

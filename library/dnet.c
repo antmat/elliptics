@@ -154,32 +154,6 @@ static int dnet_cmd_route_list(struct dnet_net_state *orig, struct dnet_cmd *cmd
 	return err;
 }
 
-static int dnet_cmd_exec(struct dnet_net_state *st, struct dnet_cmd *cmd, void *data)
-{
-	struct dnet_node *n = st->n;
-	struct sph *e = data;
-	int err = -ENOTSUP;
-
-	data += sizeof(struct sph);
-
-	dnet_convert_sph(e);
-
-	if (e->event_size + e->data_size + sizeof(struct sph) != cmd->size) {
-		err = -E2BIG;
-		dnet_log(n, DNET_LOG_ERROR, "%s: invalid size: event-size %d, data-size %llu must be: %llu",
-				dnet_dump_id(&cmd->id),
-				e->event_size,
-				(unsigned long long)e->data_size,
-				(unsigned long long)cmd->size);
-		goto err_out_exit;
-	}
-
-	err = dnet_cmd_exec_raw(st, cmd, e, data);
-
-err_out_exit:
-	return err;
-}
-
 static int dnet_cmd_status(struct dnet_net_state *orig, struct dnet_cmd *cmd __unused, void *data)
 {
 	struct dnet_node *n = orig->n;

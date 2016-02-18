@@ -871,10 +871,6 @@ int dnet_data_map(struct dnet_map_fd *map);
 int dnet_data_map_rw(struct dnet_map_fd *map);
 void dnet_data_unmap(struct dnet_map_fd *map);
 
-int dnet_srw_init(struct dnet_node *n, struct dnet_config *cfg);
-void dnet_srw_cleanup(struct dnet_node *n);
-int dnet_cmd_exec_raw(struct dnet_net_state *st, struct dnet_cmd *cmd, struct sph *header, const void *data);
-
 void *dnet_cache_init(struct dnet_node *n, struct dnet_backend_io *backend, const void *config);
 void dnet_cache_cleanup(void *);
 int dnet_cmd_cache_io(struct dnet_backend_io *backend, struct dnet_net_state *st, struct dnet_cmd *cmd, struct dnet_io_attr *io, char *data);
