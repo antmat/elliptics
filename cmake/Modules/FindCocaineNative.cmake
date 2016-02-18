@@ -9,7 +9,7 @@
 
 find_path(CocaineNative_INCLUDE_DIR cocaine/framework/common.hpp)
 
-find_library(CocaineNative_LIBRARY cocaine-framework)
+find_library(CocaineNative_LIBRARY cocaine-framework-native)
 
 set(CocaineNative_INCLUDE_DIRS "${CocaineNative_INCLUDE_DIR}")
 set(CocaineNative_LIBRARIES "${CocaineNative_LIBRARY}")
