@@ -23,6 +23,7 @@
 #include <functional>
 
 #include "node_p.hpp"
+#include "exec_context_data_p.hpp"
 
 #include "elliptics/async_result_cast.hpp"
 
@@ -199,59 +200,6 @@ const dnet_addr &address::to_raw() const
 	return m_addr;
 }
 
-struct exec_context_data
-{
-	data_pointer srw_data;
-	std::string event;
-	data_pointer data;
-
-	static exec_context create_raw(const exec_context *other, const std::string &event, const argument_data &data)
-	{
-		std::shared_ptr<exec_context_data> p = std::make_shared<exec_context_data>();
-
-		p->srw_data = data_pointer::allocate(sizeof(sph) + event.size() + data.size());
-
-		sph *raw_sph = p->srw_data.data<sph>();
-		if (other) {
-			memcpy(p->srw_data.data<sph>(), other->m_data->srw_data.data<sph>(), sizeof(sph));
-		} else {
-			memset(raw_sph, 0, sizeof(sph));
-			raw_sph->src_key = -1;
-		}
-
-		char *raw_event = reinterpret_cast<char *>(raw_sph + 1);
-		memcpy(raw_event, event.data(), event.size());
-		char *raw_data = raw_event + event.size();
-		memcpy(raw_data, data.data(), data.size());
-
-		raw_sph->event_size = event.size();
-		raw_sph->data_size = data.size();
-
-		p->event = event;
-		p->data = data_pointer::from_raw(raw_data, raw_sph->data_size);
-
-		return exec_context(p);
-	}
-
-	static exec_context create(const std::string &event, const argument_data &data)
-	{
-		return create_raw(NULL, event, data);
-	}
-
-	static exec_context copy(const exec_context &other, const std::string &event, const argument_data &data)
-	{
-		return create_raw(&other, event, data);
-	}
-
-	static exec_context copy(const sph &other, const std::string &event, const argument_data &data)
-	{
-		sph tmp = other;
-		tmp.event_size = 0;
-		tmp.data_size = 0;
-		return copy(exec_context::from_raw(&tmp, sizeof(tmp)), event, data);
-	}
-};
-
 exec_context::exec_context()
 {
 }
@@ -292,17 +240,20 @@ exec_context exec_context::from_raw(const void *const_data, size_t size)
 exec_context exec_context::parse(const data_pointer &data, error_info *error)
 {
 	if (data.size() < sizeof(sph)) {
-		*error = create_error(-EINVAL, "Invalid exec_context size: %zu, must be more than sph: %zu",
-				data.size(), sizeof(sph));
+		*error = create_error(-EINVAL, "invalid exec_context: actual size %zu, but can't be less than %zu (sizeof(sph))",
+				data.size(), sizeof(sph)
+		);
 		return exec_context();
 	}
 
 	sph *s = data.data<sph>();
 	if (data.size() != sizeof(sph) + s->event_size + s->data_size) {
-		*error = create_error(-EINVAL, "Invalid exec_context size: %zu, "
-				"must be equal to sph+event_size+data_size: %llu",
+		*error = create_error(-EINVAL, "invalid exec_context: total size %zu, but"
+				" must be equal to %llu (sizeof(sph)(%zu) + event_size(%d) + data_size(%lu))",
 				data.size(),
-				static_cast<unsigned long long>(sizeof(sph) + s->event_size + s->data_size));
+				static_cast<unsigned long long>(sizeof(sph) + s->event_size + s->data_size),
+				sizeof(sph), s->event_size, s->data_size
+		);
 		return exec_context();
 	}
 
@@ -323,6 +274,11 @@ std::string exec_context::event() const
 data_pointer exec_context::data() const
 {
 	return m_data ? m_data->data : data_pointer();
+}
+
+uint64_t exec_context::flags() const
+{
+	return m_data ? m_data->srw_data.data<sph>()->flags : uint64_t(0);
 }
 
 dnet_addr *exec_context::address() const
@@ -355,6 +311,11 @@ data_pointer exec_context::native_data() const
 bool exec_context::is_final() const
 {
 	return m_data ? (m_data->srw_data.data<sph>()->flags & DNET_SPH_FLAGS_FINISH) : false;
+}
+
+bool exec_context::is_reply() const
+{
+	return m_data ? (m_data->srw_data.data<sph>()->flags & DNET_SPH_FLAGS_REPLY) : false;
 }
 
 bool exec_context::is_null() const
