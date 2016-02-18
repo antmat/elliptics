@@ -4,3 +4,4 @@
 [submodule "foreign/blackhole"]
 	path = foreign/blackhole
 	url = https://github.com/3Hren/blackhole.git
+	branch = v0.2

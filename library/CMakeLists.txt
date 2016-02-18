@@ -27,7 +27,7 @@ set(ELLIPTICS_SRCS
     ../example/config_impl.cpp
     ../example/backends.c
     ../example/eblob_backend.cpp
-    # ../example/eblob_backend.c
+    ../example/eblob_backend.c
     )
 
 add_library(elliptics_ids STATIC ids.cpp)
@@ -54,8 +54,8 @@ set_target_properties(elliptics PROPERTIES
     )
 
 target_link_libraries(elliptics ${ELLIPTICS_LIBRARIES} ${EBLOB_LIBRARIES} elliptics_cache elliptics_indexes elliptics_ids elliptics_monitor elliptics_client elliptics_cpp
-    # elliptics_common
-    # elliptics_cocaine
+    elliptics_common
+    elliptics_cocaine
 )
 
 install(TARGETS elliptics

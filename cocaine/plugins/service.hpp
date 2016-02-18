@@ -44,24 +44,24 @@ public:
 		inner(std::move(inner))
 	{}
 
-    template<class... Args>
+	template<class... Args>
 	void
-    write(Args&&... args) {
+	write(Args&&... args) {
 		try {
 			inner.write(std::forward<Args>(args)...);
 		} catch (const std::exception& err) {
 			// Eat.
 		}
-    }
+	}
 
-    void
-    abort(const std::error_code& ec, const std::string& reason) {
+	void
+	abort(const std::error_code& ec, const std::string& reason) {
 		try {
 			inner.abort(ec, reason);
 		} catch (const std::exception& err) {
 			// Eat.
 		}
-    }
+	}
 };
 
 template<>
@@ -79,22 +79,22 @@ public:
 	{}
 
 	void
-    close() {
+	close() {
 		try {
 			inner.close();
 		} catch (const std::exception& err) {
 			// Eat.
 		}
-    }
+	}
 
-    void
-    abort(const std::error_code& ec, const std::string& reason) {
+	void
+	abort(const std::error_code& ec, const std::string& reason) {
 		try {
 			inner.abort(ec, reason);
 		} catch (const std::exception& err) {
 			// Eat.
 		}
-    }
+	}
 };
 
 class elliptics_service_t:

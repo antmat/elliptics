@@ -171,7 +171,7 @@ elliptics_service_t::on_read_completed(nice_deferred<std::string> promise,
 
 void
 elliptics_service_t::on_write_completed(nice_deferred<void> promise,
-	const elliptics::sync_write_result &result,
+	const elliptics::sync_write_result &/*result*/,
 	const elliptics::error_info &error)
 {
 	if (error) {
@@ -195,7 +195,7 @@ elliptics_service_t::on_find_completed(nice_deferred<std::vector<std::string> > 
 
 void
 elliptics_service_t::on_remove_completed(nice_deferred<void> promise,
-	const elliptics::sync_remove_result &result,
+	const elliptics::sync_remove_result &/*result*/,
 	const elliptics::error_info &error)
 {
 	if (error) {

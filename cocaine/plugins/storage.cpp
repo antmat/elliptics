@@ -40,15 +40,15 @@ namespace ell = ioremap::elliptics;
 static auto convert(elliptics::log_level level) -> logging::priorities {
 	switch (level) {
 	case DNET_LOG_DEBUG:
+		return logging::debug;
 	case DNET_LOG_NOTICE:
 	case DNET_LOG_INFO:
-		return cocaine::logging::debug;
+		return logging::info;
 	case DNET_LOG_WARNING:
-		return cocaine::logging::warning;
+		return logging::warning;
 	case DNET_LOG_ERROR:
-		return cocaine::logging::error;
 	default:
-		return cocaine::logging::debug;
+		return logging::error;
 	};
 }
 
@@ -85,9 +85,9 @@ public:
 			return;
 		}
 
-	    const auto mapped = convert(level);
+		const auto mapped = convert(level);
 
-		log->log(static_cast<int>(level), formatter.format(record));
+		log->log(static_cast<int>(mapped), formatter.format(record));
 	}
 };
 
@@ -105,11 +105,11 @@ dnet_config parse_json_config(const dynamic_t::object_t& args) {
 
 	std::memset(&cfg, 0, sizeof(cfg));
 
-	cfg.wait_timeout   = args.at("wait-timeout", 5).as_uint();
-	cfg.check_timeout  = args.at("check-timeout", 20).as_uint();
-	cfg.io_thread_num  = args.at("io-thread-num", 0).as_uint();
-	cfg.net_thread_num = args.at("net-thread-num", 0).as_uint();
-	cfg.flags          = args.at("flags", 0).as_uint();
+	cfg.wait_timeout   = args.at("wait-timeout", 5u).as_uint();
+	cfg.check_timeout  = args.at("check-timeout", 20u).as_uint();
+	cfg.io_thread_num  = args.at("io-thread-num", 0u).as_uint();
+	cfg.net_thread_num = args.at("net-thread-num", 0u).as_uint();
+	cfg.flags          = args.at("flags", 0u).as_uint();
 	return cfg;
 }
 
@@ -119,10 +119,11 @@ elliptics_storage_t::elliptics_storage_t(context_t &context, const std::string &
 	category_type(context, name, args),
 	m_context(context),
 	m_log(context.log(name)), // TODO: It was with attributes: {{"storage", "elliptics"}}.
-	m_log_adapter(m_log, static_cast<ioremap::elliptics::log_level>(args.as_object().at("verbosity", DNET_LOG_INFO).as_uint())),
+	//XXX: dynamic_t from cocaine can't convert int to uint, and DNET_LOG_INFO being an enum value is int
+	m_log_adapter(m_log, static_cast<ioremap::elliptics::log_level>(args.as_object().at("verbosity", uint(DNET_LOG_INFO)).as_uint())),
 	m_read_latest(args.as_object().at("read_latest", false).as_bool()),
 	m_config(parse_json_config(args.as_object())),
-	m_node(elliptics::logger(m_log_adapter, {}), m_config),
+	m_node(elliptics::logger(m_log_adapter, blackhole::log::attributes_t{{"storage", {"elliptics"}}}), m_config),
 	m_session(m_node)
 {
 	dynamic_t::array_t nodes = args.as_object().at("nodes").as_array();
@@ -204,8 +205,7 @@ void elliptics_storage_t::write(const std::string &collection,
 
 	COCAINE_LOG_DEBUG(
 		m_log,
-		"write finished: %s",
-		result.error().message()
+		"write finished"
 	);
 
 	if (result.error()) {
@@ -241,7 +241,7 @@ ell::async_read_result elliptics_storage_t::async_read(const std::string &collec
 
 	COCAINE_LOG_DEBUG(
 		m_log,
-		"reading the '%s' object, collection: '%s'",
+		"reading the '{}' object, collection: '{}'",
 		key,
 		collection
 	);
@@ -259,7 +259,7 @@ ell::async_read_result elliptics_storage_t::async_read_latest(const std::string 
 
 	COCAINE_LOG_DEBUG(
 		m_log,
-		"reading the '%s' object, collection: '%s'",
+		"reading the '{}' object, collection: '{}'",
 		key,
 		collection
 	);
@@ -278,7 +278,7 @@ static void on_adding_index_finished(const elliptics_storage_t::log_ptr &log,
 	if (err) {
 		COCAINE_LOG_DEBUG(
 			log,
-			"index adding failed: %s",
+			"index adding failed: {}",
 			err.message()
 		);
 	} else {
@@ -303,7 +303,7 @@ static void on_write_finished(const elliptics_storage_t::log_ptr &log,
 	if (err) {
 		COCAINE_LOG_DEBUG(
 			log,
-			"write failed: %s",
+			"write failed: {}",
 			err.message()
 		);
 		handler.complete(err);
@@ -331,7 +331,7 @@ ell::async_write_result elliptics_storage_t::async_write(const std::string &coll
 
 	COCAINE_LOG_DEBUG(
 		m_log,
-		"writing the '%s' object, collection: '%s'",
+		"writing the '{}' object, collection: '{}'",
 		key,
 		collection
 	);
@@ -360,7 +360,7 @@ ell::async_find_indexes_result elliptics_storage_t::async_find(const std::string
 {
 	COCAINE_LOG_DEBUG(
 		m_log,
-		"listing collection: '%s'",
+		"listing collection: '{}'",
 		collection
 	);
 	using namespace std::placeholders;
@@ -394,7 +394,7 @@ ell::async_remove_result elliptics_storage_t::async_remove(const std::string &co
 
 	COCAINE_LOG_DEBUG(
 		m_log,
-		"removing the '%s' object, collection: '%s'",
+		"removing the '{}' object, collection: '{}'",
 		key,
 		collection
 	);
@@ -420,7 +420,7 @@ ioremap::elliptics::async_read_result elliptics_storage_t::async_cache_read(cons
 {
 	COCAINE_LOG_DEBUG(
 		m_log,
-		"cache reading the '%s' object, collection: '%s'",
+		"cache reading the '{}' object, collection: '{}'",
 		key,
 		collection
 	);
@@ -438,7 +438,7 @@ ioremap::elliptics::async_write_result elliptics_storage_t::async_cache_write(co
 {
 	COCAINE_LOG_DEBUG(
 		m_log,
-		"cache writing the '%s' object, collection: '%s'",
+		"cache writing the '{}' object, collection: '{}'",
 		key,
 		collection
 	);
@@ -457,7 +457,7 @@ std::pair<ioremap::elliptics::async_read_result, elliptics_storage_t::key_name_m
 {
 	COCAINE_LOG_DEBUG(
 		m_log,
-		"bulk reading, collection: '%s'",
+		"bulk reading, collection: '{}'",
 		collection
 	);
 
@@ -481,7 +481,7 @@ ioremap::elliptics::async_write_result elliptics_storage_t::async_bulk_write(con
 {
 	COCAINE_LOG_DEBUG(
 		m_log,
-		"bulk writing, collection: '%s'",
+		"bulk writing, collection: '{}'",
 		collection
 	);
 

@@ -130,14 +130,14 @@ set(ELLIPTICS_LIBRARIES
     )
 
 # Build parts
-# add_subdirectory(srw)
+add_subdirectory(srw)
 add_subdirectory(cache)
 add_subdirectory(indexes)
 add_subdirectory(library)
 add_subdirectory(bindings)
 add_subdirectory(monitor)
-# add_subdirectory(tests)
-# add_subdirectory(example)
+add_subdirectory(tests)
+add_subdirectory(example)
 if(WITH_COCAINE)
     add_subdirectory(cocaine/plugins)
 endif()
