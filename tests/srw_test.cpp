@@ -339,21 +339,7 @@ static void localnode_test(session &sess, const std::vector<int> &groups)
 		BOOST_CHECK_GT(result.file_path.size(), 0);
 	}
 
-	//XXX: can't compare write_result and lookup_result directly because
-	// file_info.size meaning and value differs for write and lookup operations
-	//BOOST_CHECK_EQUAL(write_result, lookup_result);
-	{
-		BOOST_CHECK_EQUAL(std::string((const char *)&write_result.addr, sizeof(dnet_addr)), std::string((const char *)&lookup_result.addr, sizeof(dnet_addr)));
-		BOOST_CHECK_EQUAL(write_result.file_path, lookup_result.file_path);
-#define CMP(x) BOOST_CHECK_EQUAL(write_result.file_info.x, lookup_result.file_info.x)
-		CMP(flen);
-		CMP(record_flags);
-		//CMP(size);
-		CMP(offset);
-		CMP(mtime.tsec);
-		CMP(mtime.tnsec);
-#undef CMP
-	}
+	BOOST_CHECK_EQUAL(write_result, lookup_result);
 
 	ioremap::elliptics::data_pointer read_result;
 	{
@@ -361,7 +347,6 @@ static void localnode_test(session &sess, const std::vector<int> &groups)
 		auto future = localnode.invoke<io::localnode::read>(key.raw_id(), groups, 0, 0);
 		BOOST_REQUIRE_EQUAL(future.valid(), true);
 		BOOST_REQUIRE_NO_THROW(result = future.get());
-		// BOOST_CHECK_GT(result.size(), 0);
 	}
 
 	BOOST_CHECK_EQUAL(read_result.to_string(), value);
