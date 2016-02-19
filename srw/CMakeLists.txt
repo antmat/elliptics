@@ -1,3 +1,8 @@
+
+include_directories(BEFORE
+    SYSTEM
+    ${PROJECT_SOURCE_DIR}/foreign/asio/asio/include
+)
 include_directories(../library)
 include_directories(../cocaine/include)
 

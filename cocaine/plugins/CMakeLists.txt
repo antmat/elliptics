@@ -1,6 +1,9 @@
 add_library(elliptics-extensions MODULE module service storage)
 
-include_directories(BEFORE ../asio/asio/include)
+INCLUDE_DIRECTORIES(BEFORE
+    SYSTEM
+    ${PROJECT_SOURCE_DIR}/foreign/asio/asio/include
+)
 INCLUDE_DIRECTORIES(../include)
 TARGET_LINK_LIBRARIES(elliptics-extensions ${COCAINE_LIBRARIES} elliptics_client elliptics_cpp)
 
