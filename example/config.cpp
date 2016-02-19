@@ -407,7 +407,7 @@ extern "C" struct dnet_node *dnet_parse_config(const char *file, int mon)
 
 		node = dnet_server_node_create(data);
 		if (!node)
-			throw config_error("failed to create node");
+			throw std::runtime_error("failed to create node");
 
 		static_assert(sizeof(dnet_addr) == sizeof(address), "Size of dnet_addr and size of address must be equal");
 		if (data->remotes.size() != 0) {
@@ -416,24 +416,32 @@ extern "C" struct dnet_node *dnet_parse_config(const char *file, int mon)
 				BH_LOG(*node->log, DNET_LOG_WARNING, "Failed to connect to remote nodes: %d", err);
 		}
 
-	} catch (std::exception &exc) {
+		return node;
+
+	} catch (const config_error &exc) {
 		if (data && data->cfg_state.log) {
 			dnet_backend_log(data->cfg_state.log, DNET_LOG_ERROR,
 				"cnf: failed to read config file '%s': %s", file, exc.what());
 		} else {
-			fprintf(stderr, "cnf: %s\n", exc.what());
+			fprintf(stderr, "cnf: failed to read config file '%s': %s", file, exc.what());
 			fflush(stderr);
 		}
 
-		if (node)
-			dnet_server_node_destroy(node);
-		else if (data)
-			dnet_config_data_destroy(data);
-
-		return NULL;
+	} catch (const std::exception &exc) {
+		if (data && data->cfg_state.log) {
+			dnet_backend_log(data->cfg_state.log, DNET_LOG_ERROR, "cnf: %s", exc.what());
+		} else {
+			fprintf(stderr, "cnf: %s", exc.what());
+			fflush(stderr);
+		}
 	}
 
-	return node;
+	if (node)
+		dnet_server_node_destroy(node);
+	else if (data)
+		dnet_config_data_destroy(data);
+
+	return NULL;
 }
 
 extern "C" int dnet_backend_check_log_level(dnet_logger *l, int level)
