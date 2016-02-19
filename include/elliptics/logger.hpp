@@ -15,7 +15,13 @@
 
 #include <blackhole/log.hpp>
 #include <blackhole/logger/wrapper.hpp>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+// Drop annoying warning "unused parameter ‘end’"
+// at blackhole-v0.2/src/blackhole/detail/datetime.hpp:420.
+// Should go away when elliptics will migrate to blackhole v1.0
 #include <blackhole/formatter/map/value.hpp>
+#pragma GCC diagnostic pop
 #include <blackhole/defaults/severity.hpp>
 
 #ifdef BOOST_BIND_NO_PLACEHOLDERS_SET_BY_ELLIPTICS
