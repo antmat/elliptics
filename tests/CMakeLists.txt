@@ -239,9 +239,7 @@ if(WITH_COCAINE)
         elliptics_cpp
         ${Boost_LIBRARIES}
         ${CocaineNative_LIBRARIES}
-        #FIXME: app should not be required to be linked with cocaine_core
-        #FIXME: should add those libraries properly
-        cocaine-core
+        #FIXME: should add it properly
         blackhole
     )
 
