@@ -19,7 +19,9 @@
 #include <sys/wait.h>
 
 #ifdef HAVE_COCAINE
-#  include <cocaine/framework/services/storage.hpp>
+#include <cocaine/framework/manager.hpp>
+#include <cocaine/framework/service.hpp>
+#include <cocaine/idl/storage.hpp>
 #endif
 
 namespace tests {
@@ -952,15 +954,18 @@ nodes_data::ptr start_nodes(start_nodes_config &start_config) {
 		}
 
 #ifdef HAVE_COCAINE
+		//XXX: may be there should be another way to check if srw is up
+		// and running and ready to accept applications -- other than
+		// checking on the existence of 'storage' plugin
 		bool any_failed = false;
 
 		for (size_t i = 0; i < locator_ports.size(); ++i) {
 			try {
 				using namespace cocaine::framework;
 
-				service_manager_t::endpoint_t endpoint("127.0.0.1", locator_ports[i]);
-				auto manager = service_manager_t::create(endpoint);
-				auto storage = manager->get_service<storage_service_t>("storage");
+				service_manager_t::endpoint_type endpoint(boost::asio::ip::address_v4::loopback(), locator_ports[i]);
+				service_manager_t manager({endpoint}, 1);
+				auto storage = manager.create<cocaine::io::storage_tag>("storage");
 				(void) storage;
 
 				start_config.debug_stream << "Successfully connected to Cocaine #" << (i + 1) << std::endl;

@@ -33,7 +33,8 @@ add_library(test_common STATIC
     test_base.hpp
     test_base.cpp
     test_session.hpp
-    test_session.cpp)
+    test_session.cpp
+)
 set_target_properties(test_common ${TEST_PROPERTIES})
 set(TEST_COMMON_LIBRARIES elliptics elliptics_client elliptics_cpp ${Boost_LIBRARIES})
 if(WITH_COCAINE)
@@ -217,17 +218,32 @@ set(TESTS_LIST
 if(WITH_COCAINE)
     include_directories(../cocaine/include)
 
+    add_library(test_srw_app_control STATIC
+        srw_test_base.cpp
+    )
+    set_target_properties(test_srw_app_control ${TEST_PROPERTIES})
+    target_link_libraries(test_srw_app_control ${CocaineNative_LIBRARIES})
+    set(TEST_SRW_LIBRARIES test_srw_app_control)
+
     #
     # Define target `test_srw`
     #
-    add_executable(dnet_cpp_srw_test srw_test.cpp srw_test.hpp)
+    add_executable(dnet_cpp_srw_test srw_test.cpp)
     set_target_properties(dnet_cpp_srw_test ${TEST_PROPERTIES})
-    target_link_libraries(dnet_cpp_srw_test ${TEST_LIBRARIES} ${CocaineNative_LIBRARIES} ${LIBEV_LIBRARIES})
+    target_link_libraries(dnet_cpp_srw_test ${TEST_LIBRARIES} ${TEST_SRW_LIBRARIES})
     add_test_target(test_srw dnet_cpp_srw_test DEPENDS dnet_cpp_srw_test_app elliptics-extensions)
 
     add_executable(dnet_cpp_srw_test_app srw_test_app.cpp)
     set_target_properties(dnet_cpp_srw_test_app ${TEST_PROPERTIES})
-    target_link_libraries(dnet_cpp_srw_test_app elliptics_cpp ${CocaineNative_LIBRARIES} ${Boost_LIBRARIES} ${LIBEV_LIBRARIES})
+    target_link_libraries(dnet_cpp_srw_test_app
+        elliptics_cpp
+        ${Boost_LIBRARIES}
+        ${CocaineNative_LIBRARIES}
+        #FIXME: app should not be required to be linked with cocaine_core
+        #FIXME: should add those libraries properly
+        cocaine-core
+        blackhole
+    )
 
     add_custom_command(TARGET dnet_cpp_srw_test_app
         POST_BUILD
@@ -282,7 +298,7 @@ add_custom_command(TARGET test
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/pytests)
 
 add_executable(dnet_run_servers run_servers.cpp)
-target_link_libraries(dnet_run_servers ${TEST_LIBRARIES})
+target_link_libraries(dnet_run_servers ${TEST_LIBRARIES} ${TEST_SRW_LIBRARIES})
 
 install(TARGETS dnet_run_servers
     RUNTIME DESTINATION bin COMPONENT runtime)

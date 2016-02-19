@@ -28,8 +28,7 @@
 #include <cocaine/traits/tuple.hpp>
 #include "cocaine/traits/localnode.hpp"
 
-#include "test_base.hpp"
-#include "srw_test.hpp"
+#include "srw_test_base.hpp"
 
 namespace {
 
@@ -120,13 +119,13 @@ static void init_application(session &sess, const std::string &app_name)
  * This test checks response path via elliptics client created inside worker.
  * It was the only working way to response.
  */
-static void send_echo(session &sess, const std::string &app_name, const std::string &data)
+static void echo_via_elliptics(session &sess, const std::string &app_name, const std::string &data)
 {
 	key key_id = app_name;
 	key_id.transform(sess);
 	dnet_id id = key_id.id();
 
-	ELLIPTICS_REQUIRE(exec_result, sess.exec(&id, app_name + "@echo", data));
+	ELLIPTICS_REQUIRE(exec_result, sess.exec(&id, app_name + "@echo_via_elliptics", data));
 
 	sync_exec_result result = exec_result;
 	BOOST_REQUIRE_EQUAL(result.size(), 1);
@@ -137,13 +136,13 @@ static void send_echo(session &sess, const std::string &app_name, const std::str
  * This test checks response path via cocaine response stream.
  * From client's point of view there should be no difference.
  */
-static void send_response(session &sess, const std::string &app_name, const std::string &data)
+static void echo_via_cocaine(session &sess, const std::string &app_name, const std::string &data)
 {
 	key key_id = app_name;
 	key_id.transform(sess);
 	dnet_id id = key_id.id();
 
-	ELLIPTICS_REQUIRE(exec_result, sess.exec(&id, app_name + "@response", data));
+	ELLIPTICS_REQUIRE(exec_result, sess.exec(&id, app_name + "@echo_via_cocaine", data));
 
 	sync_exec_result result = exec_result;
 	BOOST_REQUIRE_EQUAL(result.size(), 1);
@@ -370,13 +369,14 @@ static void localnode_test(session &sess, const std::vector<int> &groups)
 
 bool register_tests(test_suite *suite, node n)
 {
-	ELLIPTICS_TEST_CASE(upload_application, global_data->locator_port, global_data->directory.path());
-	ELLIPTICS_TEST_CASE(start_application, create_session(n, { 1 }, 0, 0), application_name());
+	ELLIPTICS_TEST_CASE(upload_application, global_data->locator_port, application_name(), global_data->directory.path());
+	ELLIPTICS_TEST_CASE(start_application, global_data->locator_port, application_name());
 	ELLIPTICS_TEST_CASE(init_application, create_session(n, { 1 }, 0, 0), application_name());
-	ELLIPTICS_TEST_CASE(send_echo, create_session(n, { 1 }, 0, 0), application_name(), "some-data");
-	ELLIPTICS_TEST_CASE(send_echo, create_session(n, { 1 }, 0, 0), application_name(), "some-data and long-data.. like this");
-	ELLIPTICS_TEST_CASE(send_response, create_session(n, { 1 }, 0, 0), application_name(), "some-data");
-	ELLIPTICS_TEST_CASE(send_response, create_session(n, { 1 }, 0, 0), application_name(), "some-data and long-data.. like this");
+
+	ELLIPTICS_TEST_CASE(echo_via_elliptics, create_session(n, { 1 }, 0, 0), application_name(), "some-data");
+	ELLIPTICS_TEST_CASE(echo_via_elliptics, create_session(n, { 1 }, 0, 0), application_name(), "some-data and long-data.. like this");
+	ELLIPTICS_TEST_CASE(echo_via_cocaine, create_session(n, { 1 }, 0, 0), application_name(), "some-data");
+	ELLIPTICS_TEST_CASE(echo_via_cocaine, create_session(n, { 1 }, 0, 0), application_name(), "some-data and long-data.. like this");
 	ELLIPTICS_TEST_CASE(timeout_test, create_session(n, { 1 }, 0, 0), application_name());
 
 	ELLIPTICS_TEST_CASE(localnode_data_serialization_test);

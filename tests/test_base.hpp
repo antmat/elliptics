@@ -1,7 +1,7 @@
 #ifndef TEST_BASE_HPP
 #define TEST_BASE_HPP
 
-#include <elliptics/cppdef.h>
+#include <elliptics/session.hpp>
 #include <boost/variant.hpp>
 
 #ifndef TEST_DO_NOT_INCLUDE_PLACEHOLDERS

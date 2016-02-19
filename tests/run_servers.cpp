@@ -14,7 +14,7 @@
  */
 
 #ifdef HAVE_COCAINE
-# include "srw_test.hpp"
+# include "srw_test_base.hpp"
 #endif
 #include "test_base.hpp"
 
@@ -353,16 +353,14 @@ static int run_servers(const rapidjson::Value &doc)
 		const std::vector<int> groups(unique_groups.begin(), unique_groups.end());
 
 		try {
-			tests::upload_application(global_data->locator_port, global_data->directory.path());
+			tests::upload_application(global_data->locator_port, tests::application_name(), global_data->directory.path());
 		} catch (std::exception &exc) {
 			test::log << "Can not upload application: " << exc.what() << test::endl;
 			global_data.reset();
 			return 1;
 		}
 		try {
-			session sess(*global_data->node);
-			sess.set_groups(groups);
-			tests::start_application(sess, tests::application_name());
+			tests::start_application(global_data->locator_port, tests::application_name());
 		} catch (std::exception &exc) {
 			test::log << "Can not start application: " << exc.what() << test::endl;
 			global_data.reset();
