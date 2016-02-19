@@ -21,12 +21,12 @@
 
 #include "elliptics/interface.h"
 
-// force cocaine templates to choose std's placeholders over boost's
-namespace cocaine { namespace io {
-	using std::placeholders::_1;
-	using std::placeholders::_2;
-}}
-#include "cocaine/framework/services/localnode.hpp"
+#include <cocaine/framework/manager.hpp>
+#include <cocaine/framework/service.hpp>
+
+#include "cocaine/idl/localnode.hpp"
+#include <cocaine/traits/tuple.hpp>
+#include "cocaine/traits/localnode.hpp"
 
 #include "test_base.hpp"
 #include "srw_test.hpp"
@@ -311,10 +311,10 @@ static void localnode_test(session &sess, const std::vector<int> &groups)
 {
 	using cocaine::framework::service_manager_t;
 
-	service_manager_t::endpoint_t endpoint("127.0.0.1", global_data->locator_port);
-	auto manager = service_manager_t::create(endpoint);
+	service_manager_t::endpoint_type endpoint(boost::asio::ip::address_v4::loopback(), global_data->locator_port);
+	service_manager_t manager({endpoint}, 1);
 
-	auto localnode = manager->get_service<localnode_proxy>("localnode");
+	auto localnode = manager.create<io::localnode_tag>("localnode");
 
 	key key(gen_random(8));
 	key.transform(sess);
@@ -325,17 +325,17 @@ static void localnode_test(session &sess, const std::vector<int> &groups)
 	dnet_async_service_result lookup_result;
 	{
 		auto &result = write_result;
-		auto deferred = localnode->write(key.raw_id(), groups, value, 0);
-		BOOST_REQUIRE_NO_THROW(result = deferred.next());
-		BOOST_REQUIRE_EQUAL(deferred.valid(), true);
+		auto future = localnode.invoke<io::localnode::write>(key.raw_id(), groups, value, 0);
+		BOOST_REQUIRE_EQUAL(future.valid(), true);
+		BOOST_REQUIRE_NO_THROW(result = future.get());
 		BOOST_CHECK_GT(result.file_info.size, 0);
 		BOOST_CHECK_GT(result.file_path.size(), 0);
 	}
 	{
 		auto &result = lookup_result;
-		auto deferred = localnode->lookup(key.raw_id(), groups);
-		BOOST_REQUIRE_NO_THROW(result = deferred.next());
-		BOOST_REQUIRE_EQUAL(deferred.valid(), true);
+		auto future = localnode.invoke<io::localnode::lookup>(key.raw_id(), groups);
+		BOOST_REQUIRE_EQUAL(future.valid(), true);
+		BOOST_REQUIRE_NO_THROW(result = future.get());
 		BOOST_CHECK_GT(result.file_info.size, 0);
 		BOOST_CHECK_GT(result.file_path.size(), 0);
 	}
@@ -356,15 +356,16 @@ static void localnode_test(session &sess, const std::vector<int> &groups)
 #undef CMP
 	}
 
-	std::string read_result;
+	ioremap::elliptics::data_pointer read_result;
 	{
 		auto &result = read_result;
-		auto deferred = localnode->read(key.raw_id(), groups, 0, 0);
-		BOOST_REQUIRE_NO_THROW(result = deferred.next());
-		BOOST_CHECK_GT(result.size(), 0);
+		auto future = localnode.invoke<io::localnode::read>(key.raw_id(), groups, 0, 0);
+		BOOST_REQUIRE_EQUAL(future.valid(), true);
+		BOOST_REQUIRE_NO_THROW(result = future.get());
+		// BOOST_CHECK_GT(result.size(), 0);
 	}
 
-	BOOST_CHECK_EQUAL(read_result, value);
+	BOOST_CHECK_EQUAL(read_result.to_string(), value);
 }
 
 bool register_tests(test_suite *suite, node n)

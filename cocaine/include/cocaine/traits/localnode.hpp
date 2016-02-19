@@ -26,12 +26,26 @@ namespace cocaine { namespace io {
 
 template<>
 struct type_traits<ioremap::elliptics::data_pointer> {
+
     template<class Stream>
     static inline
     void
-    pack(msgpack::packer<Stream>& packer, const ioremap::elliptics::data_pointer& v) {
-        packer.pack_raw(v.size());
-        packer.pack_raw_body(static_cast<const char *>(v.data()), v.size());
+    pack(msgpack::packer<Stream>& target, const ioremap::elliptics::data_pointer& source) {
+        target.pack_raw(source.size());
+        target.pack_raw_body(static_cast<const char *>(source.data()), source.size());
+    }
+
+    static inline
+    void
+    unpack(const msgpack::object& source, ioremap::elliptics::data_pointer& target) {
+        if (source.type != msgpack::type::RAW) {
+            throw msgpack::type_error();
+        }
+        //XXX: Is it possible to avoid this copy?
+        target = ioremap::elliptics::data_pointer::copy(
+            source.via.raw.ptr,
+            source.via.raw.size
+        );
     }
 };
 
@@ -136,8 +150,8 @@ inline dnet_time& operator >>(const msgpack::object &o, dnet_time &v)
 }
 
 // struct dnet_file_info {
-//  int         flen;       /* filename length, which goes after this structure */
-//  unsigned char       checksum[DNET_CSUM_SIZE];
+//  int             flen;       /* filename length, which goes after this structure */
+//  unsigned char   checksum[DNET_CSUM_SIZE];
 //
 //  uint64_t        record_flags;   /* combination of DNET_RECORD_FLAGS_* */
 //  uint64_t        size;       /* size of file on disk */
