@@ -233,7 +233,7 @@ struct client_session
 	}
 
 	void finish(int error_code = 0) {
-		//XXX: elliptics client send execs (as all other commands)
+		//XXX: elliptics client send execs (same as all other commands)
 		// with NEED_ACK flag set; if cmd_copy_ have it unset then
 		// client changed incompatibly.
 		// m_cmd.flags |= DNET_FLAGS_NEED_ACK;
@@ -718,10 +718,10 @@ public:
 				};
 
 				auto session = std::make_shared<client_session>(st, cmd, srw_event/*app*/, clean_copy(exec));
-				dnet_log(m_node, DNET_LOG_DEBUG, "%s: srw: exec_context original: total %ld, event %ld(%d), payload %ld", signature.c_str(),
+				dnet_log(m_node, DNET_LOG_DEBUG, "%s: srw: exec_context original, size: total %ld, event %ld(%d), payload %ld", signature.c_str(),
 					exec.native_data().size(), exec.event().size(), exec.native_data().data<sph>()->event_size, exec.data().size()
 				);
-				dnet_log(m_node, DNET_LOG_DEBUG, "%s: srw: exec_context session copy: total %ld, event %ld(%d), payload %ld", signature.c_str(),
+				dnet_log(m_node, DNET_LOG_DEBUG, "%s: srw: exec_context session copy, size: total %ld, event %ld(%d), payload %ld", signature.c_str(),
 					session->exec_copy_.native_data().size(), session->exec_copy_.event().size(), session->exec_copy_.native_data().data<sph>()->event_size, session->exec_copy_.data().size()
 				);
 
