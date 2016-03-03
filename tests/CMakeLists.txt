@@ -13,23 +13,20 @@ set(TEST_ENV
     LD_LIBRARY_PATH="${TEST_LIBRARY_PATH}:$ENV{LD_LIBRARY_PATH}"
 )
 
-if(WITH_COCAINE)
+if (WITH_COCAINE)
     add_definitions("-DHAVE_COCAINE")
-
-    include(../cmake/Modules/locate_library.cmake)
-    LOCATE_LIBRARY(LIBEV "ev++.h" "ev" "libev")
 
     find_package(CocaineNative REQUIRED)
     include_directories(${CocaineNative_INCLUDE_DIRS} ${LIBEV_INCLUDE_DIRS})
 endif()
 
 add_library(test_common STATIC
-    ../example/common.c
-    ../example/config.cpp
-    ../example/config_impl.cpp
-    ../example/backends.c
-    ../example/eblob_backend.cpp
-    ../example/eblob_backend.c
+    ${CMAKE_SOURCE_DIR}/example/common.c
+    ${CMAKE_SOURCE_DIR}/example/config.cpp
+    ${CMAKE_SOURCE_DIR}/example/config_impl.cpp
+    ${CMAKE_SOURCE_DIR}/example/backends.c
+    ${CMAKE_SOURCE_DIR}/example/eblob_backend.cpp
+    ${CMAKE_SOURCE_DIR}/example/eblob_backend.c
     test_base.hpp
     test_base.cpp
     test_session.hpp
@@ -216,7 +213,8 @@ set(TESTS_LIST
 )
 
 if(WITH_COCAINE)
-    include_directories(../cocaine/include)
+    include_directories(${CMAKE_SOURCE_DIR}/cocaine/include)
+    include_directories(${CMAKE_SOURCE_DIR}/bindings/cpp)
 
     add_library(test_srw_app_control STATIC
         srw_test_base.cpp
