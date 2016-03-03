@@ -25,7 +25,7 @@ namespace {
 
 void keep_tx_live_till_done(elliptics::async_reply_result &async, worker::sender &tx)
 {
-	//XXX: we want is to prolong life of tx sender until we done sending the reply;
+	//XXX: what we want is to prolong life of tx sender until we done sending the reply;
 	// * so we use the fact that std::bind ignores those actual call args which don't match
 	//   inner function args (actual args object will be created but then discarded)
 	// * but we can't capture tx object directly and instead forced to hold it by shared_ptr,
@@ -42,10 +42,9 @@ void keep_tx_live_till_done(elliptics::async_reply_result &async, worker::sender
 
 struct app_context {
 	typedef service<cocaine::io::log_tag> logging_service_type;
+
 	std::string id_;
 	std::shared_ptr<logging_service_type> log_;
-
-	void log(int severity, const blackhole::v1::lazy_message_t &message, blackhole::v1::attribute_pack& pack);
 
 	std::unique_ptr<elliptics::file_logger> logger;
 	std::unique_ptr<elliptics::node> node;
@@ -56,20 +55,25 @@ struct app_context {
 	    , log_(log)
 	{}
 
+	void log(int severity, const blackhole::v1::lazy_message_t &message, blackhole::v1::attribute_pack& pack);
+
 	void init_elliptics_client(worker::sender tx, worker::receiver rx);
 	void echo_via_elliptics(worker::sender tx, worker::receiver rx);
 	void echo_via_cocaine(worker::sender tx, worker::receiver rx);
 	void noreply(worker::sender tx, worker::receiver rx);
+	void noreply_30seconds_wait(worker::sender tx, worker::receiver rx);
+
+	void chain_via_elliptics(worker::sender tx, worker::receiver rx, const int step, const std::string next_event);
 };
 
 void app_context::log(int severity, const blackhole::v1::lazy_message_t &message, blackhole::v1::attribute_pack& pack)
 {
+	//XXX: can't really use attribute pack: blackhole v0/v1 clash on it here
+	(void) pack;
 	log_->invoke<cocaine::io::log::emit>(
 		cocaine::logging::priorities(severity),
 		id_,
 		message.supplier().to_string()
-		//XXX: can't enable pack: blackhole v0/v1 clash here
-		//pack
 	);
 }
 
@@ -95,9 +99,12 @@ void app_context::init_elliptics_client(worker::sender tx, worker::receiver rx)
 	tests::node_info info;
 	info.unpack(context.data().to_string());
 
-	const std::string log_path = info.path + "/" + id_ + ".log";
+	const std::string log_path = info.path + "/" + "app-client.log";
 
 	logger.reset(new elliptics::file_logger(log_path.c_str(), DNET_LOG_DEBUG));
+	// differentiate this client from others in the log
+	logger->add_attribute({"source", {"in-app-client"}});
+
 	node.reset(new elliptics::node(elliptics::logger(*logger, blackhole::log::attributes_t())));
 
 	for (auto it = info.remotes.begin(); it != info.remotes.end(); ++it) {
@@ -113,6 +120,7 @@ void app_context::init_elliptics_client(worker::sender tx, worker::receiver rx)
 	LOG_DEBUG(*this, "{}: EXIT", __func__);
 }
 
+/// Echo input data via elliptics channel
 void app_context::echo_via_elliptics(worker::sender tx, worker::receiver rx)
 {
 	LOG_DEBUG(*this, "{}: ENTER", __func__);
@@ -125,7 +133,7 @@ void app_context::echo_via_elliptics(worker::sender tx, worker::receiver rx)
 	const std::string input(std::move(rx.recv().get().get()));
 	auto context = elliptics::exec_context::from_raw(input.data(), input.size());
 
-	LOG_INFO(*this, "{}: data-size: {}", __func__, context.data().size());
+	LOG_INFO(*this, "{}: data '{}', size {}", __func__, context.data().to_string(), context.data().size());
 
 	auto async = reply_client->reply(context, context.data(), elliptics::exec_context::final);
 	keep_tx_live_till_done(async, tx);
@@ -133,7 +141,7 @@ void app_context::echo_via_elliptics(worker::sender tx, worker::receiver rx)
 	LOG_DEBUG(*this, "{}: EXIT", __func__);
 }
 
-/* This test equals to echo, but sends reply via cocaine response stream */
+/// Echo input data via cocaine response stream
 void app_context::echo_via_cocaine(worker::sender tx, worker::receiver rx)
 {
 	LOG_DEBUG(*this, "{}: ENTER", __func__);
@@ -141,22 +149,40 @@ void app_context::echo_via_cocaine(worker::sender tx, worker::receiver rx)
 	const std::string input(std::move(rx.recv().get().get()));
 	auto context = elliptics::exec_context::from_raw(input.data(), input.size());
 
-	LOG_INFO(*this, "{}: data-size: {}", __func__, context.data().size());
+	LOG_INFO(*this, "{}: data '{}', size {}", __func__, context.data().to_string(), context.data().size());
 
-	tx.write(context.native_data().to_string()).get();
+	tx.write(context.native_data().to_string()).get().close().get();
 
 	LOG_DEBUG(*this, "{}: EXIT", __func__);
 }
 
-/**
- * @noreply function is used for timeout tests - it doesn't send reply and it must not return (at least for the timeout duration),
- * since cocaine sends 'close' event back to server-side elliptics which in turn sends completion event to client-side elliptics.
- * That completion prevents transaction from timing out, which breaks the test.
- *
- * Be careful, this function doesn't check whether application was initialized or not (compare to @echo function).
- * It is possible that new cocaine workers will be spawned only to handle this event type, and client will not send 'init' event to them.
- */
+/// Make no reply at all
 void app_context::noreply(worker::sender tx, worker::receiver rx)
+{
+	LOG_DEBUG(*this, "{}: ENTER", __func__);
+
+	(void)tx;
+
+	const std::string input(std::move(rx.recv().get().get()));
+	auto context = elliptics::exec_context::from_raw(input.data(), input.size());
+
+	LOG_INFO(*this, "{}: data '{}', size {}", __func__, context.data().to_string(), context.data().size());
+
+	LOG_DEBUG(*this, "{}: EXIT", __func__);
+}
+
+/// Used for timeout test.
+/// Make no reply but do not return immediately either (for the client timeout duration at least).
+///
+/// Return from event handler means 'close' event in the channel to the srw and subsequently
+/// 'ack' event back to the elliptics client, which is exactly what we don't want in this test
+/// -- we what elliptics client's transaction to timeout.
+///
+/// Be careful, this function doesn't check whether application was initialized or not
+/// (compare to @echo_via_elliptics function).
+/// It is possible that new cocaine workers will be spawned only to handle this event type,
+/// and client will not send 'init' event to them.
+void app_context::noreply_30seconds_wait(worker::sender tx, worker::receiver rx)
 {
 	LOG_DEBUG(*this, "{}: ENTER", __func__);
 
@@ -165,11 +191,39 @@ void app_context::noreply(worker::sender tx, worker::receiver rx)
 	const std::string input = rx.recv().get().get();
 	auto context = elliptics::exec_context::from_raw(input.data(), input.size());
 
-	LOG_INFO(*this, "noreply: data-size: %ld", context.data().size());
+	LOG_INFO(*this, "{}: data '{}', size {}", __func__, context.data().to_string(), context.data().size());
 
 	sleep(30);
 
 	LOG_DEBUG(*this, "{}: EXIT", __func__);
+}
+
+/// Pass input message to the next step in chain with `push` command
+void app_context::chain_via_elliptics(worker::sender tx, worker::receiver rx, const int step, const std::string next_event)
+{
+	LOG_DEBUG(*this, "{}: ENTER ({})", __func__, step);
+
+	if (!reply_client) {
+		tx.error(-EINVAL, "not initialized yet").get();
+		return;
+	}
+
+	const std::string input(std::move(rx.recv().get().get()));
+	auto context = elliptics::exec_context::from_raw(input.data(), input.size());
+
+	LOG_INFO(*this, "{}: data '{}', size {}", __func__, context.data().to_string(), context.data().size());
+
+	auto client = reply_client->clone();
+	client.set_trace_id(step);
+
+	dnet_id next_id = {{0}, 0, 0};
+	client.transform(next_event, next_id);
+	auto async = client.push(&next_id, context, next_event, context.data());
+
+	tx.write("").get();
+	keep_tx_live_till_done(async, tx); // invalidates `tx`
+
+	LOG_DEBUG(*this, "{}: EXIT ({})", __func__, step);
 }
 
 int main(int argc, char **argv)
@@ -179,15 +233,52 @@ int main(int argc, char **argv)
 
 	// manual connect required to (somewhat) ensure order in log message stream
 	// (cocaine's client-service protocol does not guarantee order for the messages
-	// happening during (or close to) connection/re-connection phases)
+	// happening during (or close to) connection/re-connection phase)
 	worker.manager().logger()->connect().get();
 
 	LOG_INFO(context, "{}, registering event handler(s)", context.id_.c_str());
 
 	worker.on("init", std::bind(&app_context::init_elliptics_client, &context, ph::_1, ph::_2));
-	worker.on("echo_via_elliptics", std::bind(&app_context::echo_via_elliptics, &context, ph::_1, ph::_2));
-	worker.on("echo_via_cocaine", std::bind(&app_context::echo_via_cocaine, &context, ph::_1, ph::_2));
+
+	worker.on("echo-via-elliptics", std::bind(&app_context::echo_via_elliptics, &context, ph::_1, ph::_2));
+	worker.on("echo-via-cocaine", std::bind(&app_context::echo_via_cocaine, &context, ph::_1, ph::_2));
 	worker.on("noreply", std::bind(&app_context::noreply, &context, ph::_1, ph::_2));
+	worker.on("noreply-30seconds-wait", std::bind(&app_context::noreply_30seconds_wait, &context, ph::_1, ph::_2));
+
+	// test exec+push chains
+
+	// 2 step chain
+	worker.on("2-step-chain-via-elliptics", std::bind(&app_context::chain_via_elliptics, &context,
+		ph::_1, ph::_2,
+		1, context.id_ + "@echo-via-elliptics"
+	));
+
+	// 3 step chain
+	worker.on("3-step-chain-via-elliptics", std::bind(&app_context::chain_via_elliptics, &context,
+		ph::_1, ph::_2,
+		1, context.id_ + "@3-step-chain-via-elliptics-2"
+	));
+	worker.on("3-step-chain-via-elliptics-2", std::bind(&app_context::chain_via_elliptics, &context,
+		ph::_1, ph::_2,
+		2, context.id_ + "@echo-via-elliptics"
+	));
+
+	// 4 step chain
+	worker.on("4-step-chain-via-elliptics", std::bind(&app_context::chain_via_elliptics, &context,
+		ph::_1, ph::_2,
+		1, context.id_ + "@4-step-chain-via-elliptics-2"
+	));
+	worker.on("4-step-chain-via-elliptics-2", std::bind(&app_context::chain_via_elliptics, &context,
+		ph::_1, ph::_2,
+		2, context.id_ + "@4-step-chain-via-elliptics-3"
+	));
+	worker.on("4-step-chain-via-elliptics-3", std::bind(&app_context::chain_via_elliptics, &context,
+		ph::_1, ph::_2,
+		3, context.id_ + "@echo-via-elliptics"
+	));
+
+	//TODO: add chaining via cocaine
+	//TODO: add chaining and reply via localnode
 
 	LOG_INFO(context, "{}, application started", context.id_.c_str());
 
