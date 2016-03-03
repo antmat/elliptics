@@ -53,6 +53,13 @@ static const char *ioserv_path()
 	return result;
 }
 
+void test_wrapper::operator() () const
+{
+	BH_LOG(*logger, DNET_LOG_INFO, "Start test: %s", test_name);
+	test_body();
+	BH_LOG(*logger, DNET_LOG_INFO, "Finish test: %s", test_name);
+}
+
 ioremap::elliptics::session create_session(ioremap::elliptics::node n, std::initializer_list<int> groups, uint64_t cflags, uint32_t ioflags)
 {
 	session sess(n);
@@ -62,6 +69,9 @@ ioremap::elliptics::session create_session(ioremap::elliptics::node n, std::init
 	sess.set_ioflags(ioflags);
 
 	sess.set_exceptions_policy(session::no_exceptions);
+
+	// differentiate this client from others in the log
+	sess.get_logger().log().add_attribute({"source", {"in-test-client"}});
 
 	return sess;
 }
@@ -509,7 +519,7 @@ void server_node::start()
 void server_node::stop()
 {
 	if (!is_started())
-		throw std::runtime_error("Server node \"" + m_path + "\" is already stoped");
+		throw std::runtime_error("Server node \"" + m_path + "\" is already stopped");
 
 	if (m_fork) {
 		if (!m_kill_sent) {
@@ -1006,7 +1016,7 @@ static void start_client_nodes(const start_nodes_config &start_config, const nod
 {
 	data->logger.reset(new logger_base);
 	if (!data->directory.path().empty()) {
-		const std::string path = data->directory.path() + "/client.log";
+		const std::string path = data->directory.path() + "/testsuite-client.log";
 		data->logger.reset(new file_logger(path.c_str(), DNET_LOG_DEBUG));
 	}
 

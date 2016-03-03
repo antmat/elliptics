@@ -55,12 +55,7 @@ struct test_wrapper
 	std::string test_name;
 	std::function<void ()> test_body;
 
-	void operator() () const
-	{
-		BH_LOG(*logger, DNET_LOG_INFO, "Start test: %s", test_name);
-		test_body();
-		BH_LOG(*logger, DNET_LOG_INFO, "Finish test: %s", test_name);
-	}
+	void operator() () const;
 };
 
 template <typename Method, typename... Args>
