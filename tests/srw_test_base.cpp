@@ -83,32 +83,42 @@ void upload_application(int locator_port, const std::string &app_name, const std
     msgpack::sbuffer buffer;
     {
         msgpack::packer<msgpack::sbuffer> packer(buffer);
-        packer.pack_map(2);
-        packer << std::string("log-output");
-        packer << true;
-        packer << std::string("isolate");
-        packer.pack_map(2);
-        packer << std::string("type");
-        packer << std::string("process");
-        packer << std::string("args");
-        packer.pack_map(4);
-        packer << std::string("spool");
-        packer << path;
-        // increase termination timeout to stop cocaine engine
-        // from killing our long-standing transactions, which are
-        // used for timeout test
-        //
-        // timeout test starts several exec transactions with random timeouts
-        // which end up in the noreply@ callback which just sleeps for 60 seconds
-        // this forces elliptics client-side to timeout, which must be correlated
-        // with timeouts (+2 seconds max) set for each transactions, i.e.
-        // transactions with 7 seconds timeout must be timed out at most in 7+2 seconds
-        packer << std::string("termination-timeout");
-        packer << 60;
-        packer << std::string("heartbeat-timeout");
-        packer << 60;
-        packer << std::string("startup-timeout");
-        packer << 60;
+
+        packer.pack_map(5);
+        {
+            packer << std::string("log-output") << true;
+            // increase termination timeout to stop cocaine engine
+            // from killing our long-standing transactions, which are
+            // used for timeout test
+            //
+            // timeout test starts several exec transactions with random timeouts
+            // which end up in the noreply@ callback which just sleeps for 60 seconds
+            // this forces elliptics client-side to timeout, which must be correlated
+            // with timeouts (+2 seconds max) set for each transactions, i.e.
+            // transactions with 7 seconds timeout must be timed out at most in 7+2 seconds
+            packer << std::string("termination-timeout") << 60;
+            packer << std::string("heartbeat-timeout") << 60;
+            packer << std::string("startup-timeout") << 60;
+
+            // can limit number of workers, default is 5
+            // packer << std::string("pool-limit") << 1;
+
+            // can limit single worker processing concurrency, default is 10
+            // packer << std::string("concurrency") << 5;
+
+            // but all tests should run fine as it is
+
+            packer << std::string("isolate");
+            packer.pack_map(2);
+            {
+                packer << std::string("type") << std::string("process");
+                packer << std::string("args");
+                packer.pack_map(1);
+                {
+                    packer << std::string("spool") << path;
+                }
+            }
+        }
     }
     std::string profile(buffer.data(), buffer.size());
 
@@ -142,6 +152,7 @@ void upload_application(int locator_port, const std::string &app_name, const std
         std::get<0>(results).get();
         std::get<1>(results).get();
         std::get<2>(results).get();
+
     } catch(const std::exception &e) {
         throw std::runtime_error(std::string("Failed to upload application: ") + e.what());
     }
