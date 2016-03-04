@@ -266,7 +266,7 @@ int dnet_send_ack(struct dnet_net_state *st, struct dnet_cmd *cmd, int err, int 
 		ack.flags |= DNET_FLAGS_REPLY;
 		ack.status = err;
 
-		dnet_log(n, DNET_LOG_NOTICE, "%s: %s: ack -> %s: trans: %llu, flags: %s, status: %d.",
+		dnet_log(n, DNET_LOG_NOTICE, "%s: %s: ack -> %s: trans: %llu, flags: %s, status: %d",
 				dnet_dump_id(&cmd->id), dnet_cmd_string(cmd->cmd), dnet_addr_string(&st->addr),
 				tid, dnet_flags_dump_cflags(ack.flags), err);
 
@@ -1720,21 +1720,23 @@ int dnet_process_cmd_raw(struct dnet_backend_io *backend,
 		localtime_r((time_t *)&io_tv.tv_sec, &io_tm);
 		strftime(time_str, sizeof(time_str), "%F %R:%S", &io_tm);
 
-		dnet_log(n, DNET_LOG_INFO, "%s: %s: client: %s, trans: %llu, cflags: %s, "
+		dnet_log(n, DNET_LOG_INFO, "%s: trans: %llu: %s: DONE cmd: %s, cflags: %s, "
 				"ioflags: %s, io-offset: %llu, io-size: %llu/%llu, io-user-flags: 0x%llx, "
 				"ts: %ld.%06ld '%s.%06lu', "
 				"time: %ld usecs, queue_time: %ld, err: %d.",
-				dnet_dump_id(&cmd->id), dnet_cmd_string(cmd->cmd), dnet_state_dump_addr(st),
-				tid, dnet_flags_dump_cflags(cmd->flags),
+				dnet_state_dump_addr(st), tid, dnet_dump_id(&cmd->id), dnet_cmd_string(cmd->cmd),
+				dnet_flags_dump_cflags(cmd->flags),
 				dnet_flags_dump_ioflags(io->flags),
 				(unsigned long long)io->offset, (unsigned long long)io->size, (unsigned long long)io->total_size,
 				(unsigned long long)io->user_flags,
 				io_tv.tv_sec, io_tv.tv_usec, time_str, io_tv.tv_usec,
-				diff, queue_time, err);
+				diff, queue_time, err
+        );
 	} else {
-		dnet_log(n, DNET_LOG_INFO, "%s: %s: client: %s, trans: %llu, cflags: %s, time: %ld usecs, queue_time: %ld usecs, err: %d.",
-				dnet_dump_id(&cmd->id), dnet_cmd_string(cmd->cmd), dnet_state_dump_addr(st),
-				tid, dnet_flags_dump_cflags(cmd->flags), diff, queue_time, err);
+		dnet_log(n, DNET_LOG_INFO, "%s: trans: %llu, %s: DONE cmd: %s, cflags: %s, time: %ld usecs, queue_time: %ld usecs, err: %d",
+				dnet_state_dump_addr(st), tid, dnet_dump_id(&cmd->id), dnet_cmd_string(cmd->cmd),
+				dnet_flags_dump_cflags(cmd->flags), diff, queue_time, err
+		);
 	}
 
 	// we must provide real error from the backend into statistics

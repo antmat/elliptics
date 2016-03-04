@@ -287,24 +287,27 @@ void dnet_schedule_io(struct dnet_node *n, struct dnet_io_req *r)
 	struct dnet_work_pool *pool = NULL;
 	struct dnet_io_pool *io_pool = &n->io->pool;
 	struct dnet_cmd *cmd = r->header;
-	int nonblocking = !!(cmd->flags & DNET_FLAGS_NOLOCK);
+	const unsigned long long tid = cmd->trans;
+	const int reply = !!(cmd->flags & DNET_FLAGS_REPLY);
+	const int nonblocking = !!(cmd->flags & DNET_FLAGS_NOLOCK);
 	ssize_t backend_id = -1;
 	char thread_stat_id[255];
 
 	if (cmd->size > 0) {
-		dnet_log(r->st->n, DNET_LOG_DEBUG, "%s: %s: RECV cmd: %s: cmd-size: %llu, nonblocking: %d",
-			dnet_state_dump_addr(r->st), dnet_dump_id(r->header), dnet_cmd_string(cmd->cmd),
-			(unsigned long long)cmd->size, nonblocking);
+		dnet_log(r->st->n, DNET_LOG_DEBUG, "%s: trans: %llu: %s: RECV cmd: %s: cmd-size: %llu, cflags: %s, reply: %d, nonblocking: %d",
+			dnet_state_dump_addr(r->st), tid, dnet_dump_id(r->header), dnet_cmd_string(cmd->cmd),
+			(unsigned long long)cmd->size, dnet_flags_dump_cflags(cmd->flags), reply, nonblocking
+		);
 	} else if ((cmd->size == 0) && !(cmd->flags & DNET_FLAGS_MORE) && (cmd->flags & DNET_FLAGS_REPLY)) {
-		dnet_log(r->st->n, DNET_LOG_DEBUG, "%s: %s: RECV ACK: %s: nonblocking: %d",
-			dnet_state_dump_addr(r->st), dnet_dump_id(r->header), dnet_cmd_string(cmd->cmd), nonblocking);
+		dnet_log(r->st->n, DNET_LOG_DEBUG, "%s: trans: %llu: %s: RECV ACK: %s: nonblocking: %d",
+			dnet_state_dump_addr(r->st), tid, dnet_dump_id(r->header), dnet_cmd_string(cmd->cmd),
+			nonblocking
+		);
 	} else {
-		unsigned long long tid = cmd->trans;
-		int reply = !!(cmd->flags & DNET_FLAGS_REPLY);
-
-		dnet_log(r->st->n, DNET_LOG_DEBUG, "%s: %s: RECV: %s: nonblocking: %d, cmd-size: %llu, cflags: %s, trans: %lld, reply: %d",
-			dnet_state_dump_addr(r->st), dnet_dump_id(r->header), dnet_cmd_string(cmd->cmd), nonblocking,
-			(unsigned long long)cmd->size, dnet_flags_dump_cflags(cmd->flags), tid, reply);
+		dnet_log(r->st->n, DNET_LOG_DEBUG, "%s: trans: %llu: %s: RECV: cmd: %s:, cmd-size: %llu, cflags: %s, reply: %d, nonblocking: %d",
+			dnet_state_dump_addr(r->st), tid, dnet_dump_id(r->header), dnet_cmd_string(cmd->cmd),
+			(unsigned long long)cmd->size, dnet_flags_dump_cflags(cmd->flags), reply, nonblocking
+		);
 	}
 
 	dnet_update_trans_timestamp_network(r);
@@ -356,9 +359,9 @@ void dnet_schedule_io(struct dnet_node *n, struct dnet_io_req *r)
 			cmd->backend_id = -1;
 	}
 
-	dnet_log(n, DNET_LOG_DEBUG, "%s: %s: backend_id: %zd, place: %p, backend_place: %p, "
+	dnet_log(n, DNET_LOG_DEBUG, "%s: trans: %llu, %s: backend_id: %zd, place: %p, backend_place: %p, "
 			"backend_place->pool->backend_id: %zd, cmd->backend_id: %d",
-		dnet_state_dump_addr(r->st), dnet_dump_id(r->header), backend_id, place, backend_place,
+		dnet_state_dump_addr(r->st), tid, dnet_dump_id(r->header), backend_id, place, backend_place,
 		backend_place && backend_place->pool->io ? (ssize_t)backend_place->pool->io->backend_id : (ssize_t)-1,
 		cmd->backend_id);
 
@@ -449,11 +452,11 @@ again:
 
 		tid = c->trans;
 
-		dnet_log(n, DNET_LOG_DEBUG, "%s: received trans: %llu / 0x%llx, "
-				"reply: %d, size: %llu, flags: %s, status: %d.",
-				dnet_dump_id(&c->id), tid, (unsigned long long)c->trans,
+		dnet_log(n, DNET_LOG_DEBUG, "%s: trans: %llu: %s: received cmd: reply: %d, size: %llu, flags: %s, err: %d",
+				dnet_state_dump_addr(st), tid, dnet_dump_id(&c->id),
 				!!(c->flags & DNET_FLAGS_REPLY),
-				(unsigned long long)c->size, dnet_flags_dump_cflags(c->flags), c->status);
+				(unsigned long long)c->size, dnet_flags_dump_cflags(c->flags), c->status
+		);
 
 		r = malloc(c->size + sizeof(struct dnet_cmd) + sizeof(struct dnet_io_req));
 		if (!r) {
@@ -600,7 +603,7 @@ int dnet_state_accept_process(struct dnet_net_state *orig, struct epoll_event *e
 
 	err = dnet_socket_local_addr(cs, &saddr);
 	if (err) {
-		dnet_log(n, DNET_LOG_ERROR, "%s: failed to resolve server addr for connected client: %s [%d]",
+		dnet_log(n, DNET_LOG_ERROR, "%s: Failed to resolve server addr for connected client: %s [%d]",
 				dnet_addr_string_raw(&addr, client_addr, sizeof(client_addr)), strerror(-err), -err);
 		goto err_out_exit;
 	}
