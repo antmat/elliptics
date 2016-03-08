@@ -8,7 +8,7 @@ set(TEST_IOSERV_PATH "${CMAKE_CURRENT_BINARY_DIR}/../example/dnet_ioserv")
 set(TEST_ENV
     TEST_COCAINE_CONFIG="${CMAKE_CURRENT_SOURCE_DIR}/cocaine.conf"
     TEST_COCAINE_PLUGINS="${CMAKE_CURRENT_BINARY_DIR}/../cocaine/plugins"
-    TEST_COCAINE_APP="${CMAKE_CURRENT_BINARY_DIR}/dnet_cpp_srw_test_app.tar"
+    TEST_COCAINE_APP="${CMAKE_CURRENT_BINARY_DIR}/dnet_cpp_srw_test_app.tar.gz"
     TEST_IOSERV_PATH="${TEST_IOSERV_PATH}"
     LD_LIBRARY_PATH="${TEST_LIBRARY_PATH}:$ENV{LD_LIBRARY_PATH}"
 )
@@ -243,7 +243,7 @@ if(WITH_COCAINE)
 
     add_custom_command(TARGET dnet_cpp_srw_test_app
         POST_BUILD
-        COMMAND tar -cf dnet_cpp_srw_test_app.tar dnet_cpp_srw_test_app
+        COMMAND tar -czf dnet_cpp_srw_test_app.tar.gz dnet_cpp_srw_test_app
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     )
 
