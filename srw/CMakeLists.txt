@@ -1,14 +1,14 @@
 
 include_directories(BEFORE
     SYSTEM
-    ${PROJECT_SOURCE_DIR}/foreign/asio/asio/include
+    ${CMAKE_SOURCE_DIR}/foreign/asio/asio/include
 )
-include_directories(../library)
-include_directories(../cocaine/include)
+include_directories(${CMAKE_SOURCE_DIR}/library)
+include_directories(${CMAKE_SOURCE_DIR}/cocaine/include)
 
 if (WITH_COCAINE)
     # Find cocaine node service
-    include(../cmake/Modules/locate_library.cmake)
+    include(${CMAKE_SOURCE_DIR}/cmake/Modules/locate_library.cmake)
     locate_library(COCAINE_NODE_SERVICE "cocaine/service/node.hpp" "node.cocaine-plugin.so" "cocaine")
 endif() # WITH_COCAINE
 
