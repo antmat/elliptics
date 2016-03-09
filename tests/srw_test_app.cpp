@@ -151,7 +151,7 @@ void app_context::echo_via_cocaine(worker::sender tx, worker::receiver rx)
 
 	LOG_INFO(*this, "{}: data '{}', size {}", __func__, context.data().to_string(), context.data().size());
 
-	tx.write(context.native_data().to_string()).get().close().get();
+	tx.write(context.data().to_string()).get().close().get();
 
 	LOG_DEBUG(*this, "{}: EXIT", __func__);
 }
