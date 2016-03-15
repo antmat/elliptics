@@ -75,6 +75,7 @@ class Servers:
         self.config_params = config
         self.remotes = [str(x['remote']) for x in self.config['servers']]
         self.monitors = [str(x['monitor']) for x in self.config['servers']]
+        self.groups = groups
 
     def stop(self):
         if self.p and self.p.poll() is None:

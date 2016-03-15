@@ -58,13 +58,6 @@ def raises(type, message, func, *args, **kwargs):
     assert exception.value.message == message
 
 
-@pytest.fixture(scope='session')
-def simple_node(request):
-    simple_node = elliptics.Node(elliptics.Logger("client.log", elliptics.log_level.debug))
-    simple_node.add_remotes(request.config.option.remotes)
-    return simple_node
-
-
 class PassthroughWrapper(object):
     ''' Wrapper to assure session/node destroy sequence: session first, node last '''
     def __init__(self, node, session):
@@ -106,16 +99,6 @@ def connect(endpoints, groups, **kw):
     return s
 
 
-@pytest.fixture
-def elliptics_remotes(request):
-    return request.config.option.remotes
-
-
-@pytest.fixture
-def elliptics_groups(request):
-    return [int(g) for g in request.config.option.groups.split(',')]
-
-
 def make_trace_id(test_name):
     import hashlib
     return int(hashlib.sha512(test_name).hexdigest(), 16) % (1 << 64)
@@ -129,24 +112,16 @@ def make_session(node, test_name, test_namespace=None):
     return session
 
 
-@pytest.fixture(scope='session')
-def elliptics_client(request):
-    '''
-    Initializes client connection to elliptics.
-    Returns Session object.
-    '''
-    remote = request.config.option.remotes
-    groups = [int(g) for g in request.config.option.groups.split(',')]
-    loglevel = request.config.option.loglevel
-    logfile = 'client.log'
-    return connect(remote, groups, loglevel=loglevel, logfile=logfile)
-    # client = connect([remote], groups, loglevel=loglevel)
-    # client.set_filter(elliptics.filters.all_with_ack)
-    # return client
-
+#
+# Fixtures to use in tests
+#
 
 @pytest.yield_fixture(scope="session")
 def server(request):
+    '''
+    Creates elliptics server nodes to work against.
+    Returns node ensemble configuration.
+    '''
     groups = [int(g) for g in request.config.option.groups.split(',')]
 
     servers = Servers(groups=groups,
@@ -160,3 +135,36 @@ def server(request):
     yield servers
 
     servers.stop()
+
+
+# Fixture `server` named a bit off because it actually creates
+# an ensemble of server nodes.
+# Plural is more proper.
+servers = server
+
+
+@pytest.fixture(scope='session')
+def elliptics_client(request):
+    '''
+    Initializes client connection to elliptics.
+    Returns Session object.
+    '''
+    if len(request.config.option.remotes) == 0:
+        pytest.fail('`elliptics_client` fixture should go after `server` fixture, check your test')
+    remote = request.config.option.remotes
+    groups = [int(g) for g in request.config.option.groups.split(',')]
+    loglevel = request.config.option.loglevel
+    logfile = 'client.log'
+    return connect(remote, groups, loglevel=loglevel, logfile=logfile)
+    # client = connect([remote], groups, loglevel=loglevel)
+    # client.set_filter(elliptics.filters.all_with_ack)
+    # return client
+
+
+@pytest.fixture(scope='session')
+def simple_node(request):
+    if len(request.config.option.remotes) == 0:
+        pytest.fail('`simple_node` fixture should go after `server` fixture, check your test')
+    simple_node = elliptics.Node(elliptics.Logger("client.log", elliptics.log_level.debug))
+    simple_node.add_remotes(request.config.option.remotes)
+    return simple_node
