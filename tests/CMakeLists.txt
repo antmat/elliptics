@@ -290,8 +290,9 @@ add_custom_command(TARGET test
         pip install pytest-timeout &&
         pip install msgpack-python &&
         export LD_LIBRARY_PATH=.:.. &&
-        ${TEST_ENV} py.test ${PYTESTS_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/pytests
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/pytests)
+        env ${TEST_ENV} py.test ${PYTESTS_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/pytests
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/pytests
+)
 
 add_executable(dnet_run_servers run_servers.cpp)
 target_link_libraries(dnet_run_servers ${TEST_LIBRARIES} ${TEST_SRW_LIBRARIES})
