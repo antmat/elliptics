@@ -124,9 +124,9 @@ static void destroy_global_data()
 	global_data.reset();
 }
 
-static void init_application(session &sess, const std::string &app_name)
+static void init_application(session &client, const std::string &app_name)
 {
-	init_application_impl(sess, app_name, *global_data);
+	init_application_impl(client, app_name, *global_data);
 }
 
 boost::unit_test::test_suite *create_testsuite(int argc, char *argv[])
@@ -188,13 +188,13 @@ static void test_info(session &client, const std::string &app_name)
 /// (For some time it was the only working way to respond.)
 /// Original client is able to receive reply.
 ///
-static void test_echo_via_elliptics(session &sess, const std::string &app_name, const std::string &data)
+static void test_echo_via_elliptics(session &client, const std::string &app_name, const std::string &data)
 {
 	key key_id(gen_random(8));
-	key_id.transform(sess);
+	key_id.transform(client);
 	dnet_id id = key_id.id();
 
-	ELLIPTICS_REQUIRE(exec_result, sess.exec(&id, app_name + "@echo-via-elliptics", data));
+	ELLIPTICS_REQUIRE(exec_result, client.exec(&id, app_name + "@echo-via-elliptics", data));
 
 	sync_exec_result result = exec_result;
 	BOOST_REQUIRE_EQUAL(result.size(), 1);
@@ -206,13 +206,13 @@ static void test_echo_via_elliptics(session &sess, const std::string &app_name, 
 /// From original client's point of view there should be no difference.
 /// Original client is able to receive reply.
 ///
-static void test_echo_via_cocaine(session &sess, const std::string &app_name, const std::string &data)
+static void test_echo_via_cocaine(session &client, const std::string &app_name, const std::string &data)
 {
 	key key_id(gen_random(8));
-	key_id.transform(sess);
+	key_id.transform(client);
 	dnet_id id = key_id.id();
 
-	ELLIPTICS_REQUIRE(exec_result, sess.exec(&id, app_name + "@echo-via-cocaine", data));
+	ELLIPTICS_REQUIRE(exec_result, client.exec(&id, app_name + "@echo-via-cocaine", data));
 
 	sync_exec_result result = exec_result;
 	BOOST_REQUIRE_EQUAL(result.size(), 1);
@@ -277,9 +277,9 @@ static void test_chain_via_elliptics(session &client, const std::string &app_nam
 ///
 class thread_watchdog {
 	public:
-		session sess;
+		session client;
 
-		thread_watchdog(const session &sess) : sess(sess), need_exit(false) {
+		thread_watchdog(const session &client) : client(client), need_exit(false) {
 			tid = std::thread(std::bind(&thread_watchdog::ping, this));
 		}
 
@@ -294,7 +294,7 @@ class thread_watchdog {
 
 		void ping() {
 			while (!need_exit) {
-				sess.read_data(std::string("test-key"), 0, 0).wait();
+				client.read_data(std::string("test-key"), 0, 0).wait();
 				sleep(1);
 			}
 		}
@@ -322,10 +322,10 @@ class thread_watchdog {
 ///
 /// For more details see dnet_trans_iterate_move_transaction() function.
 ///
-static void test_timeout(session &sess, const std::string &app_name)
+static void test_timeout(session &client, const std::string &app_name)
 {
 	key key_id = app_name;
-	key_id.transform(sess);
+	key_id.transform(client);
 	dnet_id id = key_id.id();
 
 	// just a number of test transactions
@@ -334,15 +334,15 @@ static void test_timeout(session &sess, const std::string &app_name)
 	std::vector<std::pair<int, async_exec_result>> results;
 	results.reserve(num);
 
-	sess.set_exceptions_policy(session::no_exceptions);
+	client.set_exceptions_policy(session::no_exceptions);
 
-	thread_watchdog ping(sess);
+	thread_watchdog ping(client);
 
 	for (int i = 0; i < num; ++i) {
 		int timeout = rand() % 20 + 1;
-		sess.set_timeout(timeout);
+		client.set_timeout(timeout);
 
-		results.emplace_back(std::make_pair(timeout, sess.exec(&id, app_name + "@noreply-30seconds-wait", "some data")));
+		results.emplace_back(std::make_pair(timeout, client.exec(&id, app_name + "@noreply-30seconds-wait", "some data")));
 	}
 
 
@@ -433,7 +433,7 @@ static void test_localnode_data_serialization()
 ///
 /// Checks if `localnode` service methods are really working.
 ///
-static void test_localnode(session &sess, const std::vector<int> &groups)
+static void test_localnode(session &client, const std::vector<int> &groups)
 {
 	using cocaine::framework::service_manager_t;
 
@@ -443,7 +443,7 @@ static void test_localnode(session &sess, const std::vector<int> &groups)
 	auto localnode = manager.create<io::localnode_tag>("localnode");
 
 	key key(gen_random(8));
-	key.transform(sess);
+	key.transform(client);
 
 	auto value = gen_random(15);
 
