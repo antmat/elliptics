@@ -262,7 +262,7 @@ list(APPEND TESTS_DEPS dnet_run_servers)
 #
 # Target `test` execute all available tests (both implemented in C++ and in python)
 #
-add_test_target(test ${TESTS_LIST} DEPENDS ${TESTS_DEPS})
+add_test_target(test ${TESTS_LIST} DEPENDS ${TESTS_DEPS} core_python)
 
 add_custom_command(TARGET test
     POST_BUILD
