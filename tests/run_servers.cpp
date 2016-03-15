@@ -339,9 +339,11 @@ static int run_servers(const rapidjson::Value &doc)
 				std::string(path.GetString(), path.GetStringLength()));
 		start_config.fork = fork;
 		start_config.monitor = monitor;
+		start_config.srw = srw;
 		start_config.isolated = isolated;
 
 		global_data = tests::start_nodes(start_config);
+
 	} catch (std::exception &err) {
 		test::log << "Error during startup: " << err.what() << test::endl;
 		return 1;
@@ -353,31 +355,35 @@ static int run_servers(const rapidjson::Value &doc)
 		const std::vector<int> groups(unique_groups.begin(), unique_groups.end());
 
 		try {
-			tests::upload_application(global_data->locator_port, tests::application_name(), global_data->directory.path());
+			tests::upload_application(global_data->nodes[0].locator_port(), tests::application_name(), global_data->directory.path());
 		} catch (std::exception &exc) {
 			test::log << "Can not upload application: " << exc.what() << test::endl;
 			global_data.reset();
 			return 1;
 		}
-		try {
-			tests::start_application(global_data->locator_port, tests::application_name());
-		} catch (std::exception &exc) {
-			test::log << "Can not start application: " << exc.what() << test::endl;
-			global_data.reset();
-			return 1;
+		for (size_t i = 0; i < global_data->nodes.size(); ++i) {
+			try {
+				tests::start_application(global_data->nodes[i].locator_port(), tests::application_name());
+
+			} catch (std::exception &exc) {
+				test::log << "Can not start application on node #" << i << ": " << exc.what() << test::endl;
+				global_data.reset();
+				return 1;
+			}
 		}
 		sleep(2);
 		try {
 			session sess(*global_data->node);
 			sess.set_groups(groups);
 			tests::init_application_impl(sess, tests::application_name(), *global_data);
+
 		} catch (std::exception &exc) {
 			test::log << "Can not init application: " << exc.what() << test::endl;
 			global_data.reset();
 			return 1;
 		}
 	}
-#endif
+#endif // HAVE_COCAINE
 
 	for (size_t i = 0; i < global_data->nodes.size(); ++i) {
 		tests::server_node &node = global_data->nodes.at(i);
@@ -403,6 +409,10 @@ static int run_servers(const rapidjson::Value &doc)
 			rapidjson::Value monitor_port;
 			monitor_port.SetInt(node.monitor_port());
 			server.AddMember("monitor", monitor_port, info.GetAllocator());
+
+			rapidjson::Value locator_port;
+			locator_port.SetInt(node.locator_port());
+			server.AddMember("locator_port", locator_port, info.GetAllocator());
 
 			servers.PushBack(server, info.GetAllocator());
 		}

@@ -101,11 +101,17 @@ bool register_tests(test_suite *suite, node n);
 static void configure_nodes(const std::vector<std::string> &remotes, const std::string &path)
 {
 	if (remotes.empty()) {
-		start_nodes_config start_config(results_reporter::get_stream(), std::vector<server_config>({
-			server_config::default_srw_value().apply_options(config_data()
-				("group", 1)
-			)
-		}), path);
+		start_nodes_config start_config(results_reporter::get_stream(),
+			std::vector<server_config>({
+				server_config::default_srw_value().apply_options(config_data()
+					("group", 1)
+				),
+				// server_config::default_srw_value().apply_options(config_data()
+				// 	("group", 1)
+				// ),
+			}),
+			path
+		);
 
 		global_data = start_nodes(start_config);
 	} else {
@@ -431,7 +437,7 @@ static void test_localnode(session &sess, const std::vector<int> &groups)
 {
 	using cocaine::framework::service_manager_t;
 
-	service_manager_t::endpoint_type endpoint(boost::asio::ip::address_v4::loopback(), global_data->locator_port);
+	service_manager_t::endpoint_type endpoint(boost::asio::ip::address_v4::loopback(), global_data->nodes[0].locator_port());
 	service_manager_t manager({endpoint}, 1);
 
 	auto localnode = manager.create<io::localnode_tag>("localnode");
@@ -486,8 +492,10 @@ bool register_tests(test_suite *suite, node n)
 	const std::string app = application_name();
 
 	/// prerequisite: launch and init test application
-	ELLIPTICS_TEST_CASE(upload_application, global_data->locator_port, app, global_data->directory.path());
-	ELLIPTICS_TEST_CASE(start_application, global_data->locator_port, app);
+	ELLIPTICS_TEST_CASE(upload_application, global_data->nodes[0].locator_port(), app, global_data->directory.path());
+	for (const auto &i : global_data->nodes) {
+		ELLIPTICS_TEST_CASE(start_application, i.locator_port(), app);
+	}
 	ELLIPTICS_TEST_CASE(init_application, create_session(n, { 1 }, 0, 0), app);
 
 	ELLIPTICS_TEST_CASE(test_info, create_session(n, { 1 }, 0, 0), app);

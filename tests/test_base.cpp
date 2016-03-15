@@ -433,18 +433,39 @@ server_config &server_config::apply_options(const config_data &data)
 	return *this;
 }
 
-server_node::server_node() : m_node(NULL), m_monitor_port(0), m_fork(false), m_kill_sent(false), m_pid(0)
+server_node::server_node()
+	: m_node(NULL)
+	, m_monitor_port(0)
+	, m_locator_port(0)
+	, m_fork(false)
+	, m_kill_sent(false)
+	, m_pid(0)
 {
 }
 
-server_node::server_node(const std::string &path, const server_config &config, const address &remote, int monitor_port, bool fork)
-	: m_node(NULL), m_path(path), m_config(config), m_remote(remote), m_monitor_port(monitor_port), m_fork(fork), m_kill_sent(false), m_pid(0)
+server_node::server_node(const std::string &path, const server_config &config, const address &remote, int monitor_port, int locator_port, bool fork)
+	: m_node(NULL)
+	, m_path(path)
+	, m_config(config)
+	, m_remote(remote)
+	, m_monitor_port(monitor_port)
+	, m_locator_port(locator_port)
+	, m_fork(fork)
+	, m_kill_sent(false)
+	, m_pid(0)
 {
 }
 
-server_node::server_node(server_node &&other) :
-	m_node(other.m_node), m_path(std::move(other.m_path)), m_config(std::move(other.m_config)), m_remote(std::move(other.m_remote)),
-	m_monitor_port(other.monitor_port()), m_fork(other.m_fork), m_kill_sent(other.m_kill_sent), m_pid(other.m_pid)
+server_node::server_node(server_node &&other)
+	: m_node(other.m_node)
+	, m_path(std::move(other.m_path))
+	, m_config(std::move(other.m_config))
+	, m_remote(std::move(other.m_remote))
+	, m_monitor_port(other.monitor_port())
+	, m_locator_port(other.locator_port())
+	, m_fork(other.m_fork)
+	, m_kill_sent(other.m_kill_sent)
+	, m_pid(other.m_pid)
 {
 	other.m_node = NULL;
 	other.m_fork = false;
@@ -587,6 +608,11 @@ address server_node::remote() const
 int server_node::monitor_port() const
 {
 	return m_monitor_port;
+}
+
+int server_node::locator_port() const
+{
+	return m_locator_port;
 }
 
 pid_t server_node::pid() const
@@ -732,15 +758,16 @@ static void create_cocaine_config(const std::string &config_path, const std::str
 static void start_client_nodes(const start_nodes_config &start_config, const nodes_data::ptr &data, const std::vector<std::string> &remotes);
 
 start_nodes_config::start_nodes_config(std::ostream &debug_stream, const std::vector<server_config> &&configs, const std::string &path)
-: debug_stream(debug_stream)
-, configs(std::move(configs))
-, path(path)
-, fork(false)
-, monitor(true)
-, isolated(false)
-, client_node_flags(0)
-, client_wait_timeout(0)
-, client_stall_count(0)
+	: debug_stream(debug_stream)
+	, configs(std::move(configs))
+	, path(path)
+	, fork(false)
+	, monitor(true)
+	, srw(true)
+	, isolated(false)
+	, client_node_flags(0)
+	, client_wait_timeout(0)
+	, client_stall_count(0)
 {}
 
 nodes_data::ptr start_nodes(start_nodes_config &start_config) {
@@ -765,9 +792,14 @@ nodes_data::ptr start_nodes(start_nodes_config &start_config) {
 
 	std::set<std::string> all_ports;
 	const auto ports = generate_ports(start_config.configs.size(), all_ports);
-	const auto monitor_ports = start_config.monitor
+	const auto monitor_ports = (start_config.monitor
 		? generate_ports(start_config.configs.size(), all_ports)
-		: std::vector<std::string>(start_config.configs.size(), "0");
+		: std::vector<std::string>(start_config.configs.size(), "0")
+	);
+	const auto locator_ports = (start_config.srw
+		? generate_ports(start_config.configs.size(), all_ports)
+		: std::vector<std::string>(start_config.configs.size(), "0")
+	);
 
 	if (start_config.path.empty()) {
 		char buffer[1024];
@@ -792,30 +824,31 @@ nodes_data::ptr start_nodes(start_nodes_config &start_config) {
 
 	start_config.debug_stream << "Set base directory: \"" << base_path << "\"" << std::endl;
 
-	create_directory(run_path);
-	data->run_directory = directory_handler(run_path, true);
-	start_config.debug_stream << "Set cocaine run directory: \"" << run_path << "\"" << std::endl;
+#ifdef HAVE_COCAINE
+	if (start_config.srw) {
+		create_directory(run_path);
+		data->run_directory = directory_handler(run_path, true);
+		start_config.debug_stream << "Set cocaine run directory: \"" << run_path << "\"" << std::endl;
 
-	std::set<std::string> cocaine_unique_groups;
-	std::string cocaine_remotes;
-	std::string cocaine_groups;
-	for (size_t j = 0; j < start_config.configs.size(); ++j) {
-		if (j > 0)
-			cocaine_remotes += ", ";
-		cocaine_remotes += "\"127.0.0.1:" + ports[j] + ":2\"";
-		for (auto it = start_config.configs[j].backends.begin(); it != start_config.configs[j].backends.end(); ++it) {
-			const std::string group = it->string_value("group");
-			if (cocaine_unique_groups.insert(group).second) {
-				if (!cocaine_groups.empty())
-					cocaine_groups += ", ";
-				cocaine_groups += group;
+		//FIXME: remove when cocaine will learn to accept multiple plugin search paths
+		start_config.debug_stream << "Create symlink to `node` plugin in " << cocaine_config_plugins() << std::endl;
+		const std::string target = (cocaine_config_plugins() + "/node.cocaine-plugin.so");
+		if (::symlink("/usr/lib/cocaine/node.cocaine-plugin.so", target.c_str())) {
+			const int err = errno;
+			if (err == EEXIST) {
+				start_config.debug_stream << "Warning: symlink " << target << " already exist" << std::endl;
+				// But its ok, passing by
+
+			} else {
+				start_config.debug_stream << "Failed to create symlink: "
+						<< errno << ", " << strerror(errno)
+						<< std::endl;
+				throw std::runtime_error("Failed to create symlink to `node` plugin");
 			}
 		}
+		start_config.debug_stream << "Set `node` plugin: " << target << std::endl;
 	}
-
-	const auto cocaine_locator_ports = generate_ports(start_config.configs.size(), all_ports);
-
-	std::vector<int> locator_ports;
+#endif // HAVE_COCAINE
 
 	start_config.debug_stream << "Starting " << start_config.configs.size() << " servers" << std::endl;
 
@@ -846,22 +879,34 @@ nodes_data::ptr start_nodes(start_nodes_config &start_config) {
 		if (!remotes.empty() && !start_config.isolated)
 			config.options("remote", remotes);
 
-		if (config.options.has_value("srw_config")) {
+#ifdef HAVE_COCAINE
+		if (start_config.srw) {
 			const std::string server_run_path = run_path + server_suffix;
-
-			if (cocaine_config_template.empty())
-				cocaine_config_template = read_file(cocaine_config_path().c_str());
-
 			create_directory(server_run_path);
 
-			// client only needs connection to one (any) locator service
-			if (!data->locator_port)
-				data->locator_port = boost::lexical_cast<int>(cocaine_locator_ports[i]);
+			std::set<std::string> cocaine_unique_groups;
+			std::string cocaine_remotes;
+			std::string cocaine_groups;
+			for (size_t j = 0; j < start_config.configs.size(); ++j) {
+				if (j > 0)
+					cocaine_remotes += ", ";
+				cocaine_remotes += "\"127.0.0.1:" + ports[j] + ":2\"";
+				for (auto it = start_config.configs[j].backends.begin(); it != start_config.configs[j].backends.end(); ++it) {
+					const std::string group = it->string_value("group");
+					if (cocaine_unique_groups.insert(group).second) {
+						if (!cocaine_groups.empty())
+							cocaine_groups += ", ";
+						cocaine_groups += group;
+					}
+				}
+			}
 
-			locator_ports.push_back(boost::lexical_cast<int>(cocaine_locator_ports[i]));
+			if (cocaine_config_template.empty()) {
+				cocaine_config_template = read_file(cocaine_config_path().c_str());
+			}
 
 			const substitute_context cocaine_variables = {
-				{ "COCAINE_LOCATOR_PORT", cocaine_locator_ports[i] },
+				{ "COCAINE_LOCATOR_PORT", locator_ports[i] },
 				{ "COCAINE_PLUGINS_PATH", cocaine_config_plugins() },
 				{ "ELLIPTICS_REMOTES", cocaine_remotes },
 				{ "ELLIPTICS_GROUPS", cocaine_groups },
@@ -872,6 +917,7 @@ nodes_data::ptr start_nodes(start_nodes_config &start_config) {
 
 			config.options("srw_config", server_path + "/cocaine.conf");
 		}
+#endif // HAVE_COCAINE
 
 		if (config.log_path.empty())
 			config.log_path = server_path + "/log.log";
@@ -899,10 +945,13 @@ nodes_data::ptr start_nodes(start_nodes_config &start_config) {
 			config,
 			create_remote(ports[i]),
 			boost::lexical_cast<int>(monitor_ports[i]),
-			start_config.fork);
+			boost::lexical_cast<int>(locator_ports[i]),
+			start_config.fork
+		);
 
 		try {
 			server.start();
+
 		} catch (...) {
 			std::ifstream in;
 			in.open(config.log_path.c_str());
@@ -967,29 +1016,32 @@ nodes_data::ptr start_nodes(start_nodes_config &start_config) {
 		//XXX: may be there should be another way to check if srw is up
 		// and running and ready to accept applications -- other than
 		// checking on the existence of 'storage' plugin
-		bool any_failed = false;
+		if (start_config.srw) {
+			bool any_failed = false;
 
-		for (size_t i = 0; i < locator_ports.size(); ++i) {
-			try {
-				using namespace cocaine::framework;
+			for (size_t i = 0; i < data->nodes.size(); ++i) {
+				try {
+					using namespace cocaine::framework;
 
-				service_manager_t::endpoint_type endpoint(boost::asio::ip::address_v4::loopback(), locator_ports[i]);
-				service_manager_t manager({endpoint}, 1);
-				auto storage = manager.create<cocaine::io::storage_tag>("storage");
-				(void) storage;
+					service_manager_t::endpoint_type endpoint(boost::asio::ip::address_v4::loopback(), data->nodes[i].locator_port());
+					service_manager_t manager({endpoint}, 1);
+					auto storage = manager.create<cocaine::io::storage_tag>("storage");
+					(void) storage;
 
-				start_config.debug_stream << "Successfully connected to Cocaine #" << (i + 1) << std::endl;
-			} catch (std::exception &) {
-				any_failed = true;
-				break;
+					start_config.debug_stream << "Successfully connected to Cocaine #" << (i + 1) << std::endl;
+				} catch (std::exception &) {
+					any_failed = true;
+					break;
+				}
+			}
+
+			if (any_failed) {
+				start_config.debug_stream << "Cocaine has not been started yet, try again in 1 second" << std::endl;
+				continue;
 			}
 		}
+#endif // HAVE_COCAINE
 
-		if (any_failed) {
-			start_config.debug_stream << "Cocaine has not been started yet, try again in 1 second" << std::endl;
-			continue;
-		}
-#endif
 		break;
 	}
 
@@ -1000,6 +1052,7 @@ nodes_data::ptr start_nodes(start_nodes_config &start_config) {
 		}
 
 		start_client_nodes(start_config, data, remotes);
+
 	} catch (std::exception &e) {
 		start_config.debug_stream << "Failed to connect to servers: " << e.what() << std::endl;
 		throw;
