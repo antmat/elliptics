@@ -59,6 +59,7 @@ public:
 
 		callback_result_entry entry(data);
 
+		//TODO: move exec_context parsing to exec_result_entry
 		if (cmd->cmd == DNET_CMD_EXEC && cmd->size > 0) {
 			data->context = exec_context::parse(entry.data(), &data->error);
 		}

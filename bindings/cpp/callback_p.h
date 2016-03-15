@@ -121,42 +121,49 @@ class callback_result_data
 
 		data_pointer data;
 		error_info error;
+
+		//TODO: exec_context belong to exec_result_entry
 		exec_context context;
 };
 
-enum special_count { unlimited };
-
-struct entry_converter
-{
-	static void convert(exec_result_entry &entry, callback_result_data *data)
-	{
-		data->context = exec_context::parse(entry.data(), &data->error);
-	}
-
-	static void convert(iterator_result_entry &entry, callback_result_data *)
-	{
-		dnet_convert_iterator_response(entry.reply());
-	}
-
-	static void convert(lookup_result_entry &entry, callback_result_data *)
-	{
-		dnet_convert_addr(entry.storage_address());
-		dnet_convert_file_info(entry.file_info());
-	}
-
-	static void convert(read_result_entry &entry, callback_result_data *)
-	{
-		dnet_convert_io_attr(entry.io_attribute());
-	}
-
-	static void convert(backend_status_result_entry &, callback_result_data *)
-	{
-	}
-
-	static void convert(callback_result_entry &, callback_result_data *)
-	{
-	}
-};
+//XXX: not used anywhere
+// This converter could be possibly useful in moving exec_context out of callback_result_data
+// (where is does not belong) and to a more proper place (closer to exec_result_entry),
+// that was the incentive I assume, but that endeavour was never finished
+//
+// enum special_count { unlimited };
+//
+// struct entry_converter
+// {
+// 	static void convert(exec_result_entry &entry, callback_result_data *data)
+// 	{
+// 		data->context = exec_context::parse(entry.data(), &data->error);
+// 	}
+//
+// 	static void convert(iterator_result_entry &entry, callback_result_data *)
+// 	{
+// 		dnet_convert_iterator_response(entry.reply());
+// 	}
+//
+// 	static void convert(lookup_result_entry &entry, callback_result_data *)
+// 	{
+// 		dnet_convert_addr(entry.storage_address());
+// 		dnet_convert_file_info(entry.file_info());
+// 	}
+//
+// 	static void convert(read_result_entry &entry, callback_result_data *)
+// 	{
+// 		dnet_convert_io_attr(entry.io_attribute());
+// 	}
+//
+// 	static void convert(backend_status_result_entry &, callback_result_data *)
+// 	{
+// 	}
+//
+// 	static void convert(callback_result_entry &, callback_result_data *)
+// 	{
+// 	}
+// };
 
 struct dnet_net_state_deleter
 {

@@ -47,6 +47,14 @@ struct exec_context_data
         p->event = event;
         p->data = data_pointer::from_raw(raw_data, raw_sph->data_size);
 
+        // Current data_pointer creation is clear and is easily understandable,
+        // but the downside is that resulting `data` data_pointer has nothing
+        // in common with `srw_data` data_pointer, even if both are pointing
+        // to the same memory block.
+        // This alternative is a bit less clear but links both data_pointers together.
+        //TODO: switch to it?
+        // p->data = p->srw_data.skip(raw_data - reinterpret_cast<char*>(raw_sph));
+
         return exec_context(p);
     }
 

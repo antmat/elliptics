@@ -27,7 +27,7 @@ namespace ioremap { namespace elliptics {
 
 /*
  * This macroses should be used surrounding all entry::methods which work directly
- * with m_data or data() to ensure that meanfull exceptions are thrown
+ * with m_data or data() to ensure that meaningful exceptions are thrown
  */
 #define DNET_DATA_BEGIN() try { \
 	do {} while (false)
