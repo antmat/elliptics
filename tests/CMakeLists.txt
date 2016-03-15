@@ -183,10 +183,10 @@ target_link_libraries(dnet_cpp_indexes_test elliptics_cpp)
 #FIXME: is this also a test? Then uncomment the next line and add it to the TESTS_LIST below.
 # add_test_target(test_indexes dnet_cpp_indexes_test)
 
-add_executable(dnet_queue_timeoue_test queue_timeout.cpp)
-set_target_properties(dnet_queue_timeoue_test ${TEST_PROPERTIES})
-target_link_libraries(dnet_queue_timeoue_test ${TEST_LIBRARIES})
-add_test_target(test_queue_timeout dnet_queue_timeoue_test DEPENDS ${TESTS_DEPS})
+add_executable(dnet_queue_timeout_test queue_timeout.cpp)
+set_target_properties(dnet_queue_timeout_test ${TEST_PROPERTIES})
+target_link_libraries(dnet_queue_timeout_test ${TEST_LIBRARIES})
+add_test_target(test_queue_timeout dnet_queue_timeout_test DEPENDS ${TESTS_DEPS})
 
 add_executable(dnet_new_api_test new_api_test.cpp)
 set_target_properties(dnet_new_api_test ${TEST_PROPERTIES})
@@ -208,7 +208,7 @@ set(TESTS_LIST
     dnet_locks_test
     dnet_crypto_test
     dnet_server_send_test
-    dnet_queue_timeoue_test
+    dnet_queue_timeout_test
     dnet_new_api_test
 )
 
