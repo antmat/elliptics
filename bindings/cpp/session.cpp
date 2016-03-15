@@ -281,6 +281,13 @@ uint64_t exec_context::flags() const
 	return m_data ? m_data->srw_data.data<sph>()->flags : uint64_t(0);
 }
 
+void exec_context::set_flags(uint64_t flags) const
+{
+	if (m_data) {
+		m_data->srw_data.data<sph>()->flags = flags;
+	}
+}
+
 dnet_addr *exec_context::address() const
 {
 	return m_data ? &m_data->srw_data.data<sph>()->addr : NULL;

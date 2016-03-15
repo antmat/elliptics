@@ -59,6 +59,8 @@ class exec_context
 		data_pointer data() const;
 
 		uint64_t flags() const;
+		//NOTE: dangerous, use with care
+		void set_flags(uint64_t flags) const;
 
 		// access to address of the machine emitted the reply
 		dnet_addr *address() const;
