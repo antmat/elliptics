@@ -55,7 +55,6 @@ set_target_properties(elliptics PROPERTIES
 
 target_link_libraries(elliptics ${ELLIPTICS_LIBRARIES} ${EBLOB_LIBRARIES} elliptics_cache elliptics_indexes elliptics_ids elliptics_monitor elliptics_client elliptics_cpp
     elliptics_common
-    elliptics_cocaine
 )
 
 install(TARGETS elliptics
