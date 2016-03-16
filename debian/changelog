@@ -1,3 +1,10 @@
+elliptics (2.26.9.3+nmu4) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * package: adapt with the Cocaine 12.7.3
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 16 Mar 2016 16:25:30 +0300
+
 elliptics (2.26.9.3+nmu3) unstable; urgency=low
 
   * Non-maintainer upload.
