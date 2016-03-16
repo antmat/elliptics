@@ -1,3 +1,50 @@
+elliptics (2.26.10.2~6~srw1) unstable; urgency=medium
+
+  [ Evgeny Safronov ]
+  * plugins: adapt to cocaine-v12, blackhole-v1
+
+  [ Ivan Chelubeev ]
+  * fix plugins after adaptation to cocaine-v12,blackhole-v1
+  * comment texts correction
+  * logging: little cleanup and double-free error avoidence
+  * build: full library name in cmake module for cocaine-framework-native
+  * build: search for msgpack once only
+  * make methods to create exec_context accessible to srw module
+  * create node: differenciate config errors from other causes
+  * mask annoying warning happening at the deep of blackhole v0.2
+  * foreign/asio: new submodule moved out of cocaine/ to the top level
+  * localnode: adapt to cocaine-v12, blackhole-v1
+  * srw: move init/fini methods out of dnet.c completely to srw.cpp
+  * srw: refactor and adapt to cocaine-v12, blackhole-v1 (preliminary state)
+  * tests: srw tests updated to changes in srw and localnode
+  * tests: simplify after write/lookup size mismatch was fixed in @480bb39
+  * tests: cocaine-framework-native stopped forcing apps to link with cocaine-core
+  * debian: update dependencies after migration to cocaine-v12, blackhole-v1
+  * srw: edit comments and log messages
+  * plugins: fix logging after migration to blackhole-1
+  * tests: srw test app profile should also be migrated
+  * tests: remove libev, add binding/cpp dependencies
+  * tests: clean framework a little
+  * srw: new tests for push and exec+push chains; also cleanup
+  * library: make io commands send/recv logging more uniform
+  * build: use proper cmake construct for relative paths
+  * tests: use compression on srw test app (just because)
+  * need work: srw: fix backstream logic, more logging
+  * srw: unified context in the logging, more comments
+  * tests: fix python srw tests (fixture cleanup and proper call order)
+  * tests: target `test` should depend on `core_python` (elliptics python binding)
+  * tests: proper multinode support for srw and srw apps
+  * tests: srw_test.cpp: `sess` renamed to `client`
+  * exec_context: add set_flags() method
+  * srw: always use saved exec_context in replies to the client
+  * cleanup, comments and spelling fixes
+  * tests: safer way to set environment variables
+  * tests: fix target name typo: dnet_queue_timeoue_test
+  * build: drop direct dependency on libelliptics_cocaine from libelliptics
+  * build: rename target elliptics_cocaine to elliptics_srw
+
+ -- Ivan Chelubeev <ijon@yandex-team.ru>  Thu, 17 Mar 2016 00:02:26 +0300
+
 elliptics (2.26.10.2~6) unstable; urgency=low
 
   * dc recovery: fix skipping keys when a whole server-send is failed
