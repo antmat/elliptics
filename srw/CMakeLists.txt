@@ -15,13 +15,13 @@ endif() # WITH_COCAINE
 
 find_package(Msgpack REQUIRED)
 
-add_library(elliptics_cocaine STATIC
+add_library(elliptics_srw STATIC
     srw.cpp
     localnode.cpp
 )
 
-set_target_properties(elliptics_cocaine PROPERTIES COMPILE_FLAGS "-fPIC")
-target_link_libraries(elliptics_cocaine
+set_target_properties(elliptics_srw PROPERTIES COMPILE_FLAGS "-fPIC")
+target_link_libraries(elliptics_srw
     ${ELLIPTICS_LIBRARIES}
     ${MSGPACK_LIBRARIES}
     ${COCAINE_NODE_SERVICE_LIBRARIES}

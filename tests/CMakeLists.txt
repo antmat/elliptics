@@ -35,7 +35,7 @@ add_library(test_common STATIC
 set_target_properties(test_common ${TEST_PROPERTIES})
 set(TEST_COMMON_LIBRARIES elliptics elliptics_client elliptics_cpp ${Boost_LIBRARIES})
 if(WITH_COCAINE)
-    list(APPEND TEST_COMMON_LIBRARIES elliptics_cocaine ${CocaineNative_LIBRARIES} ${LIBEV_LIBRARIES})
+    list(APPEND TEST_COMMON_LIBRARIES elliptics_srw ${CocaineNative_LIBRARIES} ${LIBEV_LIBRARIES})
     list(APPEND TEST_LIBRARIES ${CocaineNative_LIBRARIES} ${LIBEV_LIBRARIES})
 endif()
 target_link_libraries(test_common ${TEST_COMMON_LIBRARIES})

@@ -5,7 +5,7 @@ if(UNIX OR MINGW)
 endif()
 
 set(DNET_IOSERV_SRCS ioserv.c)
-set(DNET_IOSERV_LIBRARIES ${ECOMMON_LIBRARIES} elliptics elliptics_cocaine dl)
+set(DNET_IOSERV_LIBRARIES ${ECOMMON_LIBRARIES} elliptics elliptics_srw dl)
 
 add_executable(dnet_ioserv ${DNET_IOSERV_SRCS})
 target_link_libraries(dnet_ioserv ${DNET_IOSERV_LIBRARIES})
