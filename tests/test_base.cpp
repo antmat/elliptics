@@ -822,31 +822,31 @@ nodes_data::ptr start_nodes(start_nodes_config &start_config) {
 		data->directory = directory_handler(base_path, false);
 	}
 
-	start_config.debug_stream << "Set base directory: \"" << base_path << "\"" << std::endl;
+	start_config.debug_stream << "-- Set base directory: \"" << base_path << "\"" << std::endl;
 
 #ifdef HAVE_COCAINE
 	if (start_config.srw) {
 		create_directory(run_path);
 		data->run_directory = directory_handler(run_path, true);
-		start_config.debug_stream << "Set cocaine run directory: \"" << run_path << "\"" << std::endl;
+		start_config.debug_stream << "-- Set cocaine run directory: \"" << run_path << "\"" << std::endl;
 
 		//FIXME: remove when cocaine will learn to accept multiple plugin search paths
-		start_config.debug_stream << "Create symlink to `node` plugin in " << cocaine_config_plugins() << std::endl;
+		start_config.debug_stream << "-- Create symlink to `node` plugin in " << cocaine_config_plugins() << std::endl;
 		const std::string target = (cocaine_config_plugins() + "/node.cocaine-plugin.so");
 		if (::symlink("/usr/lib/cocaine/node.cocaine-plugin.so", target.c_str())) {
 			const int err = errno;
 			if (err == EEXIST) {
-				start_config.debug_stream << "Warning: symlink " << target << " already exist" << std::endl;
+				start_config.debug_stream << "-- Warning: symlink " << target << " already exist" << std::endl;
 				// But its ok, passing by
 
 			} else {
-				start_config.debug_stream << "Failed to create symlink: "
+				start_config.debug_stream << "-- Failed to create symlink: "
 						<< errno << ", " << strerror(errno)
 						<< std::endl;
 				throw std::runtime_error("Failed to create symlink to `node` plugin");
 			}
 		}
-		start_config.debug_stream << "Set `node` plugin: " << target << std::endl;
+		start_config.debug_stream << "-- Set `node` plugin: " << target << std::endl;
 	}
 #endif // HAVE_COCAINE
 

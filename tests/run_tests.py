@@ -18,7 +18,7 @@ def run_test(path, test):
 
 def force_mkdir(path):
     if os.path.exists(path):
-        print('Removing path: {0}'.format(path))
+        print('-- Removing path: {0}'.format(path))
         shutil.rmtree(path)
 
     os.mkdir(path)
@@ -33,7 +33,7 @@ def main():
     for i in xrange(3, len(sys.argv)):
         tests.append((binary_dir, sys.argv[i]))
 
-    print('Running {0} tests'.format(len(tests)))
+    print('\nRunning {0} tests'.format(len(tests)))
 
     tests_base_dir = binary_dir + '/result'
     force_mkdir(tests_base_dir)
@@ -44,7 +44,7 @@ def main():
     all_ok = True
     for i in xrange(0, len(tests)):
         test = tests[i]
-        print('# Start {1} of {2}: {0}: '.format(test[1], i + 1, len(tests)))
+        print('\n# Start {1} of {2}: {0}: '.format(test[1], i + 1, len(tests)))
 
         timer_begin = time.time()
         result = run_test(tests_base_dir + '/' + test[1],
@@ -56,7 +56,7 @@ def main():
         else:
             str_result = 'Failed ({0})'.format(result)
 
-        print('# Result: {0}\t{1} sec\n'.format(str_result,
+        print('# Result: {0}\t{1} sec'.format(str_result,
                                                 timer_end - timer_begin))
 
         all_ok &= result == 0
@@ -67,7 +67,7 @@ def main():
             file.add(tests_base_dir + '/' + test[1], test[1])
             file.close()
 
-    print('Tests are finished')
+    print('\nTests are finished\n')
 
     if all_ok:
         exit(0)
