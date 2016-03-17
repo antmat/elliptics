@@ -1,11 +1,13 @@
 #!/usr/bin/python
+from __future__ import print_function
+
+import sys
 import subprocess
 import time
 import tarfile
 import os
 import sys
 import shutil
-
 
 def run_test(path, test):
     os.mkdir(path)
@@ -16,9 +18,16 @@ def run_test(path, test):
     return p.returncode
 
 
+# Forced flushing is required to properly combine outputs
+# from this script and test executable it launches into single stream.
+def _print(s):
+    print(s, file=sys.stdout)
+    sys.stdout.flush()
+
+
 def force_mkdir(path):
     if os.path.exists(path):
-        print('-- Removing path: {0}'.format(path))
+        _print('-- Removing path: {0}'.format(path))
         shutil.rmtree(path)
 
     os.mkdir(path)
@@ -33,7 +42,7 @@ def main():
     for i in xrange(3, len(sys.argv)):
         tests.append((binary_dir, sys.argv[i]))
 
-    print('\nRunning {0} tests'.format(len(tests)))
+    _print('\nRunning {0} tests'.format(len(tests)))
 
     tests_base_dir = binary_dir + '/result'
     force_mkdir(tests_base_dir)
@@ -44,7 +53,7 @@ def main():
     all_ok = True
     for i in xrange(0, len(tests)):
         test = tests[i]
-        print('\n# Start {1} of {2}: {0}: '.format(test[1], i + 1, len(tests)))
+        _print('\n# Start {1} of {2}: {0}: '.format(test[1], i + 1, len(tests)))
 
         timer_begin = time.time()
         result = run_test(tests_base_dir + '/' + test[1],
@@ -56,7 +65,7 @@ def main():
         else:
             str_result = 'Failed ({0})'.format(result)
 
-        print('# Result: {0}\t{1} sec'.format(str_result,
+        _print('# Result: {0}\t{1} sec'.format(str_result,
                                                 timer_end - timer_begin))
 
         all_ok &= result == 0
@@ -67,7 +76,7 @@ def main():
             file.add(tests_base_dir + '/' + test[1], test[1])
             file.close()
 
-    print('\nTests are finished\n')
+    _print('\nTests are finished\n')
 
     if all_ok:
         exit(0)
