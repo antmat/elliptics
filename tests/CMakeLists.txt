@@ -121,6 +121,7 @@ set(TESTS_DEPS dnet_ioserv)
 #
 #TODO: may be its worth making utility function for test definition block
 #
+#TODO: rename test.cpp to misc_test.cpp
 add_executable(dnet_cpp_misc_test test.cpp)
 set_target_properties(dnet_cpp_misc_test ${TEST_PROPERTIES})
 target_link_libraries(dnet_cpp_misc_test ${TEST_LIBRARIES})
