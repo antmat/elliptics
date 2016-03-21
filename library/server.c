@@ -244,6 +244,11 @@ void dnet_server_node_destroy(struct dnet_node *n)
 	dnet_local_addr_cleanup(n);
 	dnet_notify_exit(n);
 
+	/*
+	 * Can't do it later, logger gets destroyed in n->config_data->destroy_config_data call
+	 */
+	dnet_log(n, DNET_LOG_DEBUG, "Server node destroyed.");
+
 	if (n->config_data)
 		n->config_data->destroy_config_data(n->config_data);
 
