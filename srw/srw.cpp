@@ -907,8 +907,10 @@ void dnet_srw_cleanup(struct dnet_node *n)
 {
 	if (n->srw) {
 		try {
+			dnet_log(n, DNET_LOG_INFO, "srw: fini");
 			auto *srw = static_cast<ioremap::elliptics::srw*>(n->srw);
 			delete srw;
+			dnet_log(n, DNET_LOG_INFO, "srw: fini done");
 
 		} catch(const std::exception &e) {
 			dnet_log(n, DNET_LOG_ERROR, "srw: fini failed: %s", e.what());
