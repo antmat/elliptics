@@ -18,6 +18,7 @@
 #include <algorithm>
 
 #define BOOST_TEST_NO_MAIN
+#define BOOST_TEST_ALTERNATIVE_INIT_API
 #include <boost/test/included/unit_test.hpp>
 
 #include <boost/program_options.hpp>
@@ -26,8 +27,6 @@ using namespace ioremap::elliptics;
 using namespace boost::unit_test;
 
 namespace tests {
-
-static std::shared_ptr<nodes_data> global_data;
 
 static size_t groups_count = 3;
 static size_t nodes_count = 2;
@@ -53,7 +52,7 @@ static server_config default_value(int group)
 	return server;
 }
 
-static void configure_nodes(const std::string &path)
+static nodes_data::ptr configure_test_setup(const std::string &path)
 {
 	std::vector<server_config> servers;
 	for (size_t i = 0; i < groups_count; ++i) {
@@ -68,15 +67,15 @@ static void configure_nodes(const std::string &path)
 	start_config.fork = true;
 	start_config.client_node_flags = DNET_CFG_MIX_STATES;
 
-	global_data = start_nodes(start_config);
+	return start_nodes(start_config);
 }
 
-static void set_backends_delay_for_group(session &sess, int group, int delay)
+static void set_backends_delay_for_group(session &sess, const nodes_data *setup, int group, int delay)
 {
 	for (size_t i = 0; i < nodes_count; ++i) {
 		for (size_t j = 0; j < backends_count; ++j) {
 			const size_t node_id = (group - 1) * nodes_count + i;
-			const server_node &node = global_data->nodes[node_id];
+			const server_node &node = setup->nodes[node_id];
 			sess.set_delay(node.remote(), j, delay);
 		}
 	}
@@ -92,10 +91,10 @@ static void set_backends_delay_for_group(session &sess, int group, int delay)
 // Expected outcome should be that reads would be rarely sent to that slow backend.
 //
 // We define "rarely" as no more than 1% of total reads. This value was empirically found.
-static void test_backend_weights(session &sess)
+static void test_backend_weights(session &sess, const nodes_data *setup)
 {
 	// set backends delay to simulate slow backends i/o behaviour for particular group
-	set_backends_delay_for_group(sess, slow_group_id, backend_delay);
+	set_backends_delay_for_group(sess, setup, slow_group_id, backend_delay);
 
 	const int num_keys = 10;
 	for (int i = 0; i < num_keys; ++i) {
@@ -126,23 +125,20 @@ static void test_backend_weights(session &sess)
 			      "num_slow_group_reads: " + std::to_string(static_cast<long long>(num_slow_group_reads)) +
 			      ", max_reads_from_slow_group: " + std::to_string(static_cast<long long>(max_reads_from_slow_group)));
 
-	set_backends_delay_for_group(sess, slow_group_id, 0);
+	set_backends_delay_for_group(sess, setup, slow_group_id, 0);
 }
 
 
-bool register_tests(test_suite *suite, node n)
+bool register_tests(const nodes_data *setup)
 {
-	ELLIPTICS_TEST_CASE(test_backend_weights, create_session(n, { 1, 2, 3 }, 0, 0));
+	auto n = setup->node->get_native();
+
+	ELLIPTICS_TEST_CASE(test_backend_weights, use_session(n, { 1, 2, 3 }, 0, 0), setup);
 
 	return true;
 }
 
-static void destroy_global_data()
-{
-	global_data.reset();
-}
-
-boost::unit_test::test_suite *register_tests(int argc, char *argv[])
+nodes_data::ptr configure_test_setup_from_args(int argc, char *argv[])
 {
 	namespace bpo = boost::program_options;
 
@@ -164,21 +160,43 @@ boost::unit_test::test_suite *register_tests(int argc, char *argv[])
 		return NULL;
 	}
 
-	test_suite *suite = new test_suite("Local Test Suite");
+	return configure_test_setup(path);
+}
 
-	configure_nodes(path);
+}
 
-	register_tests(suite, *global_data->node);
+//
+// Common test initialization routine.
+//
+using namespace tests;
+using namespace boost::unit_test;
 
-	return suite;
+//FIXME: forced to use global variable and plain function wrapper
+// because of the way how init_test_main works in boost.test,
+// introducing a global fixture would be a proper way to handle
+// global test setup
+namespace {
+
+std::shared_ptr<nodes_data> setup;
+
+bool init_func()
+{
+	return register_tests(setup.get());
 }
 
 }
 
 int main(int argc, char *argv[])
 {
-	atexit(tests::destroy_global_data);
+	srand(time(nullptr));
 
-	srand(time(0));
-	return unit_test_main(tests::register_tests, argc, argv);
+	// we own our test setup
+	setup = configure_test_setup_from_args(argc, argv);
+
+	int result = unit_test_main(init_func, argc, argv);
+
+	// disassemble setup explicitly, to be sure about where its lifetime ends
+	setup.reset();
+
+	return result;
 }

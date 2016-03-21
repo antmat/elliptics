@@ -19,6 +19,7 @@
 #include "../library/crypto/sha512.h"
 
 #define BOOST_TEST_NO_MAIN
+#define BOOST_TEST_ALTERNATIVE_INIT_API
 #include <boost/test/included/unit_test.hpp>
 
 #include <boost/program_options.hpp>
@@ -95,39 +96,11 @@ static void test_sha512_file_cross_memory()
 	}
 }
 
-bool register_tests(test_suite *suite)
+bool register_tests()
 {
 	ELLIPTICS_TEST_CASE_NOARGS(test_sha512_file_cross_memory);
 
 	return true;
-}
-
-boost::unit_test::test_suite *register_tests(int argc, char *argv[])
-{
-	namespace bpo = boost::program_options;
-
-	bpo::variables_map vm;
-	bpo::options_description generic("Test options");
-
-	std::string path;
-
-	generic.add_options()
-			("help", "This help message")
-			("path", bpo::value(&path), "Path where to store everything")
-			;
-
-	bpo::store(bpo::parse_command_line(argc, argv, generic), vm);
-	bpo::notify(vm);
-
-	if (vm.count("help")) {
-		std::cerr << generic;
-		return nullptr;
-	}
-
-	test_suite *suite = new test_suite("crypto library test suite");
-	register_tests(suite);
-
-	return suite;
 }
 
 } // namespace test

@@ -18,16 +18,21 @@
 #include <algorithm>
 
 #define BOOST_TEST_NO_MAIN
+#define BOOST_TEST_ALTERNATIVE_INIT_API
 #include <boost/test/included/unit_test.hpp>
 
 #include <boost/program_options.hpp>
+
+namespace {
+
+std::shared_ptr<tests::nodes_data> setup;
+
+}
 
 using namespace ioremap::elliptics;
 using namespace boost::unit_test;
 
 namespace tests {
-
-static std::shared_ptr<nodes_data> global_data;
 
 static size_t groups_count = 2;
 static size_t nodes_count = 2;
@@ -51,7 +56,7 @@ static server_config default_value(int group)
 	return server;
 }
 
-static void configure_nodes(const std::string &path)
+static nodes_data::ptr configure_test_setup(const std::string &path)
 {
 	std::vector<server_config> servers;
 	for (size_t i = 0; i < groups_count; ++i) {
@@ -68,7 +73,7 @@ static void configure_nodes(const std::string &path)
 	start_nodes_config start_config(results_reporter::get_stream(), std::move(servers), path);
 	start_config.fork = true;
 
-	global_data = start_nodes(start_config);
+	return start_nodes(start_config);
 }
 
 static std::set<std::tuple<std::string, int, uint32_t>> get_unique_hosts(session &sess)
@@ -104,7 +109,7 @@ static void test_enable_at_start(session &sess)
 		for (size_t i = 0; i < nodes_count; ++i) {
 			for (size_t j = 0; j < backends.size(); ++j) {
 				size_t node_id = group_id * nodes_count + i;
-				server_node &node = global_data->nodes[node_id];
+				server_node &node = setup->nodes[node_id];
 				std::string host = node.remote().to_string();
 
 				auto tuple = std::make_tuple(host, group_id, backends[j]);
@@ -118,7 +123,7 @@ static void test_enable_at_start(session &sess)
 
 static void test_enable_backend(session &sess)
 {
-	server_node &node = global_data->nodes[0];
+	server_node &node = setup->nodes[0];
 
 	std::string host = node.remote().to_string();
 	auto tuple = std::make_tuple(host, 0, 1);
@@ -142,7 +147,7 @@ static void test_enable_backend(session &sess)
 
 static void test_backend_status(session &sess)
 {
-	server_node &node = global_data->nodes[0];
+	server_node &node = setup->nodes[0];
 
 	ELLIPTICS_REQUIRE(async_status_result, sess.request_backends_status(node.remote()));
 	sync_backend_status_result result = async_status_result;
@@ -166,14 +171,14 @@ static void test_backend_status(session &sess)
 
 static void test_enable_backend_again(session &sess)
 {
-	server_node &node = global_data->nodes[0];
+	server_node &node = setup->nodes[0];
 
 	ELLIPTICS_REQUIRE_ERROR(enable_result, sess.enable_backend(node.remote(), 1), -EALREADY);
 }
 
 static void test_disable_backend(session &sess)
 {
-	server_node &node = global_data->nodes[0];
+	server_node &node = setup->nodes[0];
 
 	std::string host = node.remote().to_string();
 	auto tuple = std::make_tuple(host, 0, 1);
@@ -196,14 +201,14 @@ static void test_disable_backend(session &sess)
 
 static void test_disable_backend_again(session &sess)
 {
-	server_node &node = global_data->nodes[0];
+	server_node &node = setup->nodes[0];
 
 	ELLIPTICS_REQUIRE_ERROR(enable_result, sess.disable_backend(node.remote(), 1), -EALREADY);
 }
 
 static void test_enable_backend_at_empty_node(session &sess)
 {
-	server_node &node = global_data->nodes.back();
+	server_node &node = setup->nodes.back();
 
 	std::string host = node.remote().to_string();
 	auto tuple = std::make_tuple(host, groups_count, 1);
@@ -231,7 +236,7 @@ static void test_direct_backend(session &sess)
 	const std::string first_str = "first-data";
 	const std::string second_str = "second-data";
 
-	server_node &node = global_data->nodes.front();
+	server_node &node = setup->nodes.front();
 
 	session first = sess.clone();
 	first.set_direct_id(node.remote(), 0);
@@ -304,7 +309,7 @@ static bool compare_ids(std::vector<dnet_raw_id> first, std::vector<dnet_raw_id>
 
 static void test_set_backend_ids_for_disabled(session &sess)
 {
-	server_node &node = global_data->nodes.back();
+	server_node &node = setup->nodes.back();
 
 	auto ids = generate_ids(16);
 
@@ -330,7 +335,7 @@ static void test_set_backend_ids_for_disabled(session &sess)
 
 static void test_set_backend_ids_for_enabled(session &sess)
 {
-	server_node &node = global_data->nodes.back();
+	server_node &node = setup->nodes.back();
 
 	auto ids = generate_ids(16);
 
@@ -354,7 +359,7 @@ static void test_set_backend_ids_for_enabled(session &sess)
 
 static void test_make_backend_readonly(session &sess)
 {
-	server_node &node = global_data->nodes.back();
+	server_node &node = setup->nodes.back();
 	const key id = std::string("read_only_key");
 	const std::string data = "read_only_data";
 
@@ -378,7 +383,7 @@ static void test_make_backend_readonly(session &sess)
 
 static void test_make_backend_writeable(session &sess)
 {
-	server_node &node = global_data->nodes.back();
+	server_node &node = setup->nodes.back();
 	const key id = std::string("read_only_key");
 	const std::string data = "read_only_data";
 
@@ -403,7 +408,7 @@ static void test_make_backend_writeable(session &sess)
 
 static void test_change_group(session &sess)
 {
-	server_node &node = global_data->nodes.back();
+	server_node &node = setup->nodes.back();
 	const uint32_t backend_id = 4;
 	const int old_group_id = 2;
 	const int new_group_id = 10;
@@ -441,31 +446,28 @@ static void test_change_group(session &sess)
 		"Host must not exist: " + host + ", group: 10, backend: 1");
 }
 
-bool register_tests(test_suite *suite, node n)
+bool register_tests(const nodes_data *setup)
 {
-	ELLIPTICS_TEST_CASE(test_enable_at_start, create_session(n, { 1, 2, 3 }, 0, 0));
-	ELLIPTICS_TEST_CASE(test_enable_backend, create_session(n, { 1, 2, 3 }, 0, 0));
-	ELLIPTICS_TEST_CASE(test_backend_status, create_session(n, { 1, 2, 3 }, 0, 0));
-	ELLIPTICS_TEST_CASE(test_enable_backend_again, create_session(n, { 1, 2, 3 }, 0, 0));
-	ELLIPTICS_TEST_CASE(test_disable_backend, create_session(n, { 1, 2, 3 }, 0, 0));
-	ELLIPTICS_TEST_CASE(test_disable_backend_again, create_session(n, { 1, 2, 3 }, 0, 0));
-	ELLIPTICS_TEST_CASE(test_enable_backend_at_empty_node, create_session(n, { 1, 2, 3 }, 0, 0));
-	ELLIPTICS_TEST_CASE(test_direct_backend, create_session(n, { 0 }, 0, 0));
-	ELLIPTICS_TEST_CASE(test_set_backend_ids_for_disabled, create_session(n, { 0 }, 0, 0));
-	ELLIPTICS_TEST_CASE(test_set_backend_ids_for_enabled, create_session(n, { 0 }, 0, 0));
-	ELLIPTICS_TEST_CASE(test_make_backend_readonly, create_session(n, { 0 }, 0, 0));
-	ELLIPTICS_TEST_CASE(test_make_backend_writeable, create_session(n, { 0 }, 0, 0));
-	ELLIPTICS_TEST_CASE(test_change_group, create_session(n, { 0 }, 0, 0));
+	auto n = setup->node->get_native();
+
+	ELLIPTICS_TEST_CASE(test_enable_at_start, use_session(n, { 1, 2, 3 }, 0, 0));
+	ELLIPTICS_TEST_CASE(test_enable_backend, use_session(n, { 1, 2, 3 }, 0, 0));
+	ELLIPTICS_TEST_CASE(test_backend_status, use_session(n, { 1, 2, 3 }, 0, 0));
+	ELLIPTICS_TEST_CASE(test_enable_backend_again, use_session(n, { 1, 2, 3 }, 0, 0));
+	ELLIPTICS_TEST_CASE(test_disable_backend, use_session(n, { 1, 2, 3 }, 0, 0));
+	ELLIPTICS_TEST_CASE(test_disable_backend_again, use_session(n, { 1, 2, 3 }, 0, 0));
+	ELLIPTICS_TEST_CASE(test_enable_backend_at_empty_node, use_session(n, { 1, 2, 3 }, 0, 0));
+	ELLIPTICS_TEST_CASE(test_direct_backend, use_session(n, { 0 }, 0, 0));
+	ELLIPTICS_TEST_CASE(test_set_backend_ids_for_disabled, use_session(n, { 0 }, 0, 0));
+	ELLIPTICS_TEST_CASE(test_set_backend_ids_for_enabled, use_session(n, { 0 }, 0, 0));
+	ELLIPTICS_TEST_CASE(test_make_backend_readonly, use_session(n, { 0 }, 0, 0));
+	ELLIPTICS_TEST_CASE(test_make_backend_writeable, use_session(n, { 0 }, 0, 0));
+	ELLIPTICS_TEST_CASE(test_change_group, use_session(n, { 0 }, 0, 0));
 
 	return true;
 }
 
-static void destroy_global_data()
-{
-	global_data.reset();
-}
-
-boost::unit_test::test_suite *register_tests(int argc, char *argv[])
+static nodes_data::ptr configure_test_setup_from_args(int argc, char *argv[])
 {
 	namespace bpo = boost::program_options;
 
@@ -487,22 +489,44 @@ boost::unit_test::test_suite *register_tests(int argc, char *argv[])
 		return NULL;
 	}
 
-	test_suite *suite = new test_suite("Local Test Suite");
+	return configure_test_setup(path);
+}
 
-	configure_nodes(path);
+}
 
-	register_tests(suite, *global_data->node);
+//
+// Common test initialization routine.
+//
+using namespace tests;
+using namespace boost::unit_test;
 
-	return suite;
+//FIXME: forced to use global variable and plain function wrapper
+// because of the way how init_test_main works in boost.test,
+// introducing a global fixture would be a proper way to handle
+// global test setup
+namespace {
+
+//XXX: moved to beginning of the module
+// std::shared_ptr<nodes_data> setup;
+
+bool init_func()
+{
+	return register_tests(setup.get());
 }
 
 }
 
 int main(int argc, char *argv[])
 {
-	atexit(tests::destroy_global_data);
+	srand(time(nullptr));
 
-	srand(time(0));
-	return unit_test_main(tests::register_tests, argc, argv);
+	// we own our test setup
+	setup = configure_test_setup_from_args(argc, argv);
+
+	int result = unit_test_main(init_func, argc, argv);
+
+	// disassemble setup explicitly, to be sure about where its lifetime ends
+	setup.reset();
+
+	return result;
 }
-

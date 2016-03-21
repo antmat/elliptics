@@ -72,9 +72,11 @@ def main():
 
         if result != 0:
             file_path = os.path.join(artifacts_dir, test[1] + '.tar.bz2')
+            _print('Packing artifacts to {0}...'.format(file_path))
             file = tarfile.TarFile.open(file_path, 'w:bz2')
             file.add(tests_base_dir + '/' + test[1], test[1])
             file.close()
+            _print('Done')
 
     _print('\nTests are finished\n')
 

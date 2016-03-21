@@ -17,6 +17,7 @@
 
 #include <boost/program_options.hpp>
 #define BOOST_TEST_NO_MAIN
+#define BOOST_TEST_ALTERNATIVE_INIT_API
 #include <boost/test/included/unit_test.hpp>
 
 #include "elliptics/interface.h"
@@ -94,11 +95,7 @@ namespace tests {
 using namespace ioremap::elliptics;
 using namespace boost::unit_test;
 
-static std::shared_ptr<nodes_data> global_data;
-
-bool register_tests(test_suite *suite, node n);
-
-static void configure_nodes(const std::vector<std::string> &remotes, const std::string &path)
+static nodes_data::ptr configure_test_setup(const std::vector<std::string> &remotes, const std::string &path)
 {
 	if (remotes.empty()) {
 		start_nodes_config start_config(results_reporter::get_stream(),
@@ -113,23 +110,14 @@ static void configure_nodes(const std::vector<std::string> &remotes, const std::
 			path
 		);
 
-		global_data = start_nodes(start_config);
+		return start_nodes(start_config);
+
 	} else {
-		global_data = start_nodes(results_reporter::get_stream(), remotes, path);
+		return start_nodes(results_reporter::get_stream(), remotes, path);
 	}
 }
 
-static void destroy_global_data()
-{
-	global_data.reset();
-}
-
-static void init_application(session &client, const std::string &app_name)
-{
-	init_application_impl(client, app_name, *global_data);
-}
-
-boost::unit_test::test_suite *create_testsuite(int argc, char *argv[])
+static nodes_data::ptr configure_test_setup_from_args(int argc, char *argv[])
 {
 	namespace bpo = boost::program_options;
 
@@ -153,15 +141,8 @@ boost::unit_test::test_suite *create_testsuite(int argc, char *argv[])
 		return NULL;
 	}
 
-	test_suite *suite = new test_suite("Local Test Suite");
-
-	configure_nodes(remotes, path);
-
-	register_tests(suite, *global_data->node);
-
-	return suite;
+	return configure_test_setup(remotes, path);
 }
-
 
 ///
 /// Checks worker response via cocaine response stream.
@@ -433,11 +414,11 @@ static void test_localnode_data_serialization()
 ///
 /// Checks if `localnode` service methods are really working.
 ///
-static void test_localnode(session &client, const std::vector<int> &groups)
+static void test_localnode(session &client, const std::vector<int> &groups, int locator_port)
 {
 	using cocaine::framework::service_manager_t;
 
-	service_manager_t::endpoint_type endpoint(boost::asio::ip::address_v4::loopback(), global_data->nodes[0].locator_port());
+	service_manager_t::endpoint_type endpoint(boost::asio::ip::address_v4::loopback(), locator_port);
 	service_manager_t manager({endpoint}, 1);
 
 	auto localnode = manager.create<io::localnode_tag>("localnode");
@@ -479,49 +460,52 @@ static void test_localnode(session &client, const std::vector<int> &groups)
 	BOOST_CHECK_EQUAL(read_result.to_string(), value);
 }
 
+
 ///
 /// Place to list available tests.
 ///
-bool register_tests(test_suite *suite, node n)
+bool register_tests(const nodes_data *setup)
 {
 	// IMPORTANT: Any testcase that uses session object should be registered
-	// with ELLIPTICS_TEST_CASE macro using session object as a second argument --
+	// with ELLIPTICS_TEST_CASE macro using session object exactly as a second argument --
 	// -- there is special variant of tests::make() in test_object.hpp,
 	// which is specifically tailored for test cases with session.
 
 	const std::string app = application_name();
+	auto n = setup->node->get_native();
 
 	/// prerequisite: launch and init test application
-	ELLIPTICS_TEST_CASE(upload_application, global_data->nodes[0].locator_port(), app, global_data->directory.path());
-	for (const auto &i : global_data->nodes) {
+	///TODO: turn them collectively to fixture
+	ELLIPTICS_TEST_CASE(upload_application, setup->nodes[0].locator_port(), app, setup->directory.path());
+	for (const auto &i : setup->nodes) {
 		ELLIPTICS_TEST_CASE(start_application, i.locator_port(), app);
 	}
-	ELLIPTICS_TEST_CASE(init_application, create_session(n, { 1 }, 0, 0), app);
+	ELLIPTICS_TEST_CASE(init_application_impl, use_session(n, { 1 }), app, setup);
 
-	ELLIPTICS_TEST_CASE(test_info, create_session(n, { 1 }, 0, 0), app);
+	ELLIPTICS_TEST_CASE(test_info, use_session(n, { 1 }), app);
 
 	/// various ways to send a reply to an `exec` command
-	ELLIPTICS_TEST_CASE(test_echo_via_elliptics, create_session(n, { 1 }, 0, 0), app, "some-data");
-	ELLIPTICS_TEST_CASE(test_echo_via_elliptics, create_session(n, { 1 }, 0, 0), app, "some-data and long-data.. like this");
-	ELLIPTICS_TEST_CASE(test_echo_via_cocaine, create_session(n, { 1 }, 0, 0), app, "some-data");
-	ELLIPTICS_TEST_CASE(test_echo_via_cocaine, create_session(n, { 1 }, 0, 0), app, "some-data and long-data.. like this");
+	ELLIPTICS_TEST_CASE(test_echo_via_elliptics, use_session(n, { 1 }), app, "some-data");
+	ELLIPTICS_TEST_CASE(test_echo_via_elliptics, use_session(n, { 1 }), app, "some-data and long-data.. like this");
+	ELLIPTICS_TEST_CASE(test_echo_via_cocaine, use_session(n, { 1 }), app, "some-data");
+	ELLIPTICS_TEST_CASE(test_echo_via_cocaine, use_session(n, { 1 }), app, "some-data and long-data.. like this");
 
 	/// single `push` command does not expect reply at all
-	ELLIPTICS_TEST_CASE(test_push, create_session(n, { 1 }, 0, 0), app, "some-data");
+	ELLIPTICS_TEST_CASE(test_push, use_session(n, { 1 }), app, "some-data");
 
 	//FIXME: change tests accordingly: empty reply is a special case now
 	// (apps can't return empty data and get away with it)
-	// ELLIPTICS_TEST_CASE(test_echo_via_elliptics, create_session(n, { 1 }, 0, 0), app, "");
-	// ELLIPTICS_TEST_CASE(test_echo_via_cocaine, create_session(n, { 1 }, 0, 0), app, "");
-	// ELLIPTICS_TEST_CASE(test_push, create_session(n, { 1 }, 0, 0), app, "");
+	// ELLIPTICS_TEST_CASE(test_echo_via_elliptics, use_session(n, { 1 }), app, "");
+	// ELLIPTICS_TEST_CASE(test_echo_via_cocaine, use_session(n, { 1 }), app, "");
+	// ELLIPTICS_TEST_CASE(test_push, use_session(n, { 1 }), app, "");
 
 	/// `exec`/`push` chains
-	ELLIPTICS_TEST_CASE(test_chain_via_elliptics, create_session(n, { 1 }, 0, 0), app, "2-step-chain-via-elliptics", "some-data");
-	ELLIPTICS_TEST_CASE(test_chain_via_elliptics, create_session(n, { 1 }, 0, 0), app, "3-step-chain-via-elliptics", "some-data");
-	ELLIPTICS_TEST_CASE(test_chain_via_elliptics, create_session(n, { 1 }, 0, 0), app, "4-step-chain-via-elliptics", "some-data");
+	ELLIPTICS_TEST_CASE(test_chain_via_elliptics, use_session(n, { 1 }), app, "2-step-chain-via-elliptics", "some-data");
+	ELLIPTICS_TEST_CASE(test_chain_via_elliptics, use_session(n, { 1 }), app, "3-step-chain-via-elliptics", "some-data");
+	ELLIPTICS_TEST_CASE(test_chain_via_elliptics, use_session(n, { 1 }), app, "4-step-chain-via-elliptics", "some-data");
 
 	/// timeout mechanics on `exec` commands (long test -- at least 30 seconds long)
-	ELLIPTICS_TEST_CASE(test_timeout, create_session(n, { 1 }, 0, 0), app);
+	ELLIPTICS_TEST_CASE(test_timeout, use_session(n, { 1 }), app);
 
 	/// continuous load handles properly
 	//TODO: micro stress test similar to timeout test:
@@ -534,18 +518,47 @@ bool register_tests(test_suite *suite, node n)
 	// * data structures
 	ELLIPTICS_TEST_CASE_NOARGS(test_localnode_data_serialization);
 	// * methods (first using matching group_id, then empty group list)
-	ELLIPTICS_TEST_CASE(test_localnode, create_session(n, {1}, 0, 0), std::vector<int>{1});
-	ELLIPTICS_TEST_CASE(test_localnode, create_session(n, {1}, 0, 0), std::vector<int>{});
+	ELLIPTICS_TEST_CASE(test_localnode, use_session(n, { 1 }), std::vector<int>{1}, setup->nodes[0].locator_port());
+	ELLIPTICS_TEST_CASE(test_localnode, use_session(n, { 1 }), std::vector<int>{}, setup->nodes[0].locator_port());
 
 	return true;
 }
 
 } // namespace tests
 
+
+//
+// Common test initialization routine.
+//
+using namespace tests;
+using namespace boost::unit_test;
+
+//FIXME: forced to use global variable and plain function wrapper
+// because of the way how init_test_main works in boost.test,
+// introducing a global fixture would be a proper way to handle
+// global test setup
+namespace {
+
+std::shared_ptr<nodes_data> setup;
+
+bool init_func()
+{
+	return register_tests(setup.get());
+}
+
+}
+
 int main(int argc, char *argv[])
 {
-	atexit(tests::destroy_global_data);
+	srand(time(nullptr));
 
-	srand(time(0));
-	return unit_test_main(tests::create_testsuite, argc, argv);
+	// we own our test setup
+	setup = configure_test_setup_from_args(argc, argv);
+
+	int result = unit_test_main(init_func, argc, argv);
+
+	// disassemble setup explicitly, to be sure about where its lifetime ends
+	setup.reset();
+
+	return result;
 }

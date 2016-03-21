@@ -63,7 +63,7 @@ std::string application_name();
 void start_application(int locator_port, const std::string &app_name);
 void upload_application(int locator_port, const std::string &app_name, const std::string &path);
 
-void init_application_impl(session &sess, const std::string &app_name, nodes_data &data);
+void init_application_impl(session &sess, const std::string &app_name, const nodes_data *setup);
 
 } // namespace tests
 

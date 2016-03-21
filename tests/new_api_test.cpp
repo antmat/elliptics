@@ -1,40 +1,43 @@
-#include "test_base.hpp"
-
 #include <fstream>
+#include <boost/program_options.hpp>
+
+#define BOOST_TEST_NO_MAIN
+#define BOOST_TEST_ALTERNATIVE_INIT_API
+#include <boost/test/included/unit_test.hpp>
 
 #include <eblob/blob.h>
 
-#define BOOST_TEST_NO_MAIN
-#include <boost/test/included/unit_test.hpp>
-
-#include <boost/program_options.hpp>
-
 #include "elliptics/newapi/session.hpp"
+
+#include "test_base.hpp"
 
 namespace {
 
-namespace bu = boost::unit_test;
+tests::nodes_data* get_setup();
 
-std::shared_ptr<tests::nodes_data> servers;
+}
+
+namespace tests {
+
+namespace bu = boost::unit_test;
 
 const std::vector<int> groups{1,2,3};
 
-void configure_servers(const std::string &path) {
-	servers = [&path] {
-		constexpr auto server_config = [](const tests::config_data &c) {
-			return tests::server_config::default_value().apply_options(c);
-		};
+nodes_data::ptr configure_test_setup(const std::string &path) {
+	constexpr auto server_config = [](const config_data &c) {
+		return server_config::default_value().apply_options(c);
+	};
 
-		auto configs = {server_config(tests::config_data()("group", 1)),
-		                server_config(tests::config_data()("group", 2)),
-		                server_config(tests::config_data()("group", 3))};
+	auto configs = {server_config(config_data()("group", 1)),
+	                server_config(config_data()("group", 2)),
+	                server_config(config_data()("group", 3))};
 
-		tests::start_nodes_config config(bu::results_reporter::get_stream(),
-		                                 configs,
-		                                 path);
-		config.fork = true;
-		return tests::start_nodes(config);
-	} ();
+	start_nodes_config config(bu::results_reporter::get_stream(),
+	                                 configs,
+	                                 path);
+	config.fork = true;
+
+	return start_nodes(config);
 }
 
 struct record {
@@ -100,8 +103,14 @@ void check_lookup_result(ioremap::elliptics::newapi::async_lookup_result &async,
 	BOOST_REQUIRE_EQUAL(count, expected_count);
 }
 
+} // namespace tests
+
+namespace all {
+
+using namespace tests;
+
 void test_write(const record &record) {
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 	s.set_groups(groups);
 	s.set_user_flags(record.user_flags);
 
@@ -115,7 +124,7 @@ void test_write(const record &record) {
 }
 
 void test_update_json(const record &record) {
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 	s.set_groups(groups);
 	s.set_user_flags(record.user_flags);
 
@@ -127,7 +136,7 @@ void test_update_json(const record &record) {
 }
 
 void test_update_bigger_json(const record &record) {
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 	s.set_groups(groups);
 	s.set_exceptions_policy(ioremap::elliptics::session::no_exceptions);
 	s.set_filter(ioremap::elliptics::filters::all_with_ack);
@@ -156,7 +165,7 @@ void test_update_bigger_json(const record &record) {
 }
 
 void test_update_json_noexist() {
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 	s.set_groups(groups);
 	s.set_exceptions_policy(ioremap::elliptics::session::no_exceptions);
 	s.set_filter(ioremap::elliptics::filters::all_with_ack);
@@ -174,7 +183,7 @@ void test_update_json_noexist() {
 }
 
 void test_update_json_uncommitted() {
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 	s.set_groups(groups);
 	s.set_exceptions_policy(ioremap::elliptics::session::no_exceptions);
 	s.set_filter(ioremap::elliptics::filters::all_with_ack);
@@ -196,7 +205,7 @@ void test_update_json_uncommitted() {
 }
 
 void test_lookup(const record &record) {
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 	s.set_groups(groups);
 
 	auto async = s.lookup(record.key);
@@ -205,7 +214,7 @@ void test_lookup(const record &record) {
 }
 
 void test_read_json(const record &record) {
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 
 	size_t count = 0;
 
@@ -251,7 +260,7 @@ void test_read_json(const record &record) {
 }
 
 void test_read_data(const record &record, uint64_t offset, uint64_t size) {
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 
 	size_t count = 0;
 
@@ -298,7 +307,7 @@ void test_read_data(const record &record, uint64_t offset, uint64_t size) {
 }
 
 void test_read(const record &record, uint64_t offset, uint64_t size) {
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 
 	size_t count = 0;
 
@@ -345,7 +354,7 @@ void test_read(const record &record, uint64_t offset, uint64_t size) {
 }
 
 void test_write_chunked(const record &record) {
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 	s.set_groups(groups);
 	s.set_user_flags(record.user_flags);
 	s.set_timestamp(record.timestamp);
@@ -480,7 +489,7 @@ void test_old_write_new_read_compatibility() {
 	constexpr uint64_t record_flags = DNET_RECORD_FLAGS_EXTHDR | DNET_RECORD_FLAGS_CHUNKED_CSUM;
 	constexpr uint64_t eblob_headers_size = sizeof(eblob_disk_control) + sizeof(dnet_ext_list_hdr);
 	{
-		ioremap::elliptics::session s(*servers->node);
+		ioremap::elliptics::session s(*get_setup()->node);
 		s.set_groups(groups);
 		s.set_user_flags(user_flags);
 		s.set_timestamp(timestamp);
@@ -505,7 +514,7 @@ void test_old_write_new_read_compatibility() {
 	}
 
 	{
-		ioremap::elliptics::newapi::session s(*servers->node);
+		ioremap::elliptics::newapi::session s(*get_setup()->node);
 		s.set_groups(groups);
 
 		auto async = s.lookup(key);
@@ -535,7 +544,7 @@ void test_old_write_new_read_compatibility() {
 	}
 
 	{
-		ioremap::elliptics::newapi::session s(*servers->node);
+		ioremap::elliptics::newapi::session s(*get_setup()->node);
 		s.set_groups(groups);
 
 		auto async = s.read_json(key);
@@ -574,7 +583,7 @@ void test_old_write_new_read_compatibility() {
 	}
 
 	{
-		ioremap::elliptics::newapi::session s(*servers->node);
+		ioremap::elliptics::newapi::session s(*get_setup()->node);
 		s.set_groups(groups);
 
 		auto async = s.read(key, 0, 0);
@@ -629,7 +638,7 @@ void test_new_write_old_read_compatibility() {
 	constexpr uint64_t eblob_headers_size = sizeof(eblob_disk_control) + sizeof(dnet_ext_list_hdr);
 
 	{
-		ioremap::elliptics::newapi::session s(*servers->node);
+		ioremap::elliptics::newapi::session s(*get_setup()->node);
 		s.set_groups(groups);
 		s.set_user_flags(user_flags);
 
@@ -666,7 +675,7 @@ void test_new_write_old_read_compatibility() {
 	}
 
 	{
-		ioremap::elliptics::session s(*servers->node);
+		ioremap::elliptics::session s(*get_setup()->node);
 		s.set_groups(groups);
 
 		auto async = s.lookup(key);
@@ -690,7 +699,7 @@ void test_new_write_old_read_compatibility() {
 	}
 
 	{
-		ioremap::elliptics::session s(*servers->node);
+		ioremap::elliptics::session s(*get_setup()->node);
 		s.set_groups(groups);
 
 		auto async = s.read_data(key, 0, 0);
@@ -753,7 +762,7 @@ void write_and_corrupt_data(ioremap::elliptics::newapi::session &s, const std::s
 void test_read_corrupted_json() {
 	static const auto group = groups[0];
 
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 	s.set_groups({group});
 	s.set_trace_id(rand());
 	s.set_exceptions_policy(ioremap::elliptics::session::no_exceptions);
@@ -778,7 +787,7 @@ void test_read_corrupted_json() {
 void test_read_json_with_corrupted_data_part() {
 	static const auto group = groups[0];
 
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 	s.set_groups({group});
 	s.set_trace_id(rand());
 	s.set_exceptions_policy(ioremap::elliptics::session::no_exceptions);
@@ -804,7 +813,7 @@ void test_read_json_with_corrupted_data_part() {
 void test_read_json_with_big_capacity_and_corrupted_data_part() {
 	static const auto group = groups[0];
 
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 	s.set_groups({group});
 	s.set_trace_id(rand());
 
@@ -829,7 +838,7 @@ void test_read_json_with_big_capacity_and_corrupted_data_part() {
 void test_read_data_with_corrupted_json() {
 	static const auto group = groups[0];
 
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 	s.set_groups({group});
 	s.set_trace_id(rand());
 	s.set_exceptions_policy(ioremap::elliptics::session::no_exceptions);
@@ -855,7 +864,7 @@ void test_read_data_with_corrupted_json() {
 void test_read_data_with_corrupted_json_with_big_capacity() {
 	static const auto group = groups[0];
 
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 	s.set_groups({group});
 	s.set_trace_id(rand());
 
@@ -880,7 +889,7 @@ void test_read_data_with_corrupted_json_with_big_capacity() {
 void test_read_data_with_corrupted_data() {
 	static const auto group = groups[0];
 
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 	s.set_groups({group});
 	s.set_trace_id(rand());
 	s.set_exceptions_policy(ioremap::elliptics::session::no_exceptions);
@@ -914,7 +923,7 @@ std::string make_data(const std::string &pattern, off_t size) {
 void test_read_data_part_with_corrupted_first_data() {
 	static const auto group = groups[0];
 
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 	s.set_groups({group});
 	s.set_trace_id(rand());
 	s.set_exceptions_policy(ioremap::elliptics::session::no_exceptions);
@@ -948,7 +957,7 @@ void test_read_data_part_with_corrupted_first_data() {
 void test_read_data_part_with_corrupted_second_data() {
 	static const auto group = groups[0];
 
-	ioremap::elliptics::newapi::session s(*servers->node);
+	ioremap::elliptics::newapi::session s(*get_setup()->node);
 	s.set_groups({group});
 	s.set_trace_id(rand());
 	s.set_exceptions_policy(ioremap::elliptics::session::no_exceptions);
@@ -979,8 +988,80 @@ void test_read_data_part_with_corrupted_second_data() {
 	BOOST_REQUIRE_EQUAL(result.status(), -EILSEQ);
 }
 
-namespace test_all_with_ack_filter {
-namespace bu = boost::unit_test;
+bool register_tests(const nodes_data *setup) {
+	(void) setup;
+
+	record record{
+		std::string{"key"},
+		0xff1ff2ff3,
+		dnet_time{10, 20},
+		dnet_time{10, 20},
+		std::string{"{\"key\": \"key\"}"},
+		512,
+		std::string{"key data"},
+		1024};
+
+	ELLIPTICS_TEST_CASE(test_write, record);
+	ELLIPTICS_TEST_CASE(test_lookup, record);
+	ELLIPTICS_TEST_CASE(test_read_json, record);
+	ELLIPTICS_TEST_CASE(test_read_data, record, 0, 0);
+	ELLIPTICS_TEST_CASE(test_read_data, record, 0, 1);
+	ELLIPTICS_TEST_CASE(test_read_data, record, 0, std::numeric_limits<uint64_t>::max());
+	ELLIPTICS_TEST_CASE(test_read_data, record, 1, 0);
+	ELLIPTICS_TEST_CASE(test_read_data, record, 2, 1);
+	ELLIPTICS_TEST_CASE(test_read_data, record, 3, std::numeric_limits<uint64_t>::max());
+	ELLIPTICS_TEST_CASE(test_read, record, 0, 0);
+	ELLIPTICS_TEST_CASE(test_read, record, 0, 1);
+	ELLIPTICS_TEST_CASE(test_read, record, 0, std::numeric_limits<uint64_t>::max());
+	ELLIPTICS_TEST_CASE(test_read, record, 1, 0);
+	ELLIPTICS_TEST_CASE(test_read, record, 2, 1);
+	ELLIPTICS_TEST_CASE(test_read, record, 3, std::numeric_limits<uint64_t>::max());
+
+	record.json = R"json({
+		"record": {
+			"key": "key",
+			"useful": "some useful info about the key"}
+	})json";
+	record.json_timestamp = dnet_time{11,22};
+	ELLIPTICS_TEST_CASE(test_update_json, record);
+	ELLIPTICS_TEST_CASE(test_read_json, record);
+	ELLIPTICS_TEST_CASE(test_read_data, record, 0, 0);
+
+	record.json = "";
+	record.json_timestamp = dnet_time{12,23};
+	ELLIPTICS_TEST_CASE(test_update_json, record);
+	ELLIPTICS_TEST_CASE(test_read_json, record);
+	ELLIPTICS_TEST_CASE(test_read_data, record, 0, 0);
+
+	ELLIPTICS_TEST_CASE(test_update_bigger_json, record);
+
+	record.key = {"chunked_key"};
+	record.json_timestamp = record.timestamp;
+	ELLIPTICS_TEST_CASE(test_write_chunked, record);
+
+	ELLIPTICS_TEST_CASE(test_update_json_noexist);
+	ELLIPTICS_TEST_CASE(test_update_json_uncommitted);
+
+	ELLIPTICS_TEST_CASE_NOARGS(test_old_write_new_read_compatibility);
+	ELLIPTICS_TEST_CASE_NOARGS(test_new_write_old_read_compatibility);
+
+	ELLIPTICS_TEST_CASE_NOARGS(test_read_corrupted_json);
+	ELLIPTICS_TEST_CASE_NOARGS(test_read_json_with_corrupted_data_part);
+	ELLIPTICS_TEST_CASE_NOARGS(test_read_json_with_big_capacity_and_corrupted_data_part);
+	ELLIPTICS_TEST_CASE_NOARGS(test_read_data_with_corrupted_json);
+	ELLIPTICS_TEST_CASE_NOARGS(test_read_data_with_corrupted_json_with_big_capacity);
+	ELLIPTICS_TEST_CASE_NOARGS(test_read_data_with_corrupted_data);
+	ELLIPTICS_TEST_CASE_NOARGS(test_read_data_part_with_corrupted_first_data);
+	ELLIPTICS_TEST_CASE_NOARGS(test_read_data_part_with_corrupted_second_data);
+
+	return true;
+}
+
+} // namespace all
+
+namespace all_with_ack_filter {
+
+using namespace tests;
 
 record record{
 	std::string{"test_write_with_all_with_ack_filter::key"},
@@ -1050,8 +1131,9 @@ void test_read(ioremap::elliptics::newapi::session &s) {
 	BOOST_REQUIRE_EQUAL(count, groups.size());
 }
 
-void register_tests(bu::test_suite *suite) {
-	ioremap::elliptics::newapi::session s(*servers->node);
+bool register_tests(const nodes_data *setup) {
+	ioremap::elliptics::newapi::session s(*setup->node);
+
 	s.set_groups(groups);
 	s.set_filter(ioremap::elliptics::filters::all_with_ack);
 	s.set_user_flags(record.user_flags);
@@ -1060,76 +1142,14 @@ void register_tests(bu::test_suite *suite) {
 	ELLIPTICS_TEST_CASE(test_write, s);
 	ELLIPTICS_TEST_CASE(test_lookup, s);
 	ELLIPTICS_TEST_CASE(test_read, s);
+
+	return true;
 }
 
 } /* namespace test_all_with_ack_filter */
 
-void register_tests(bu::test_suite *suite) {
-	record record{
-		std::string{"key"},
-		0xff1ff2ff3,
-		dnet_time{10, 20},
-		dnet_time{10, 20},
-		std::string{"{\"key\": \"key\"}"},
-		512,
-		std::string{"key data"},
-		1024};
 
-	ELLIPTICS_TEST_CASE(test_write, record);
-	ELLIPTICS_TEST_CASE(test_lookup, record);
-	ELLIPTICS_TEST_CASE(test_read_json, record);
-	ELLIPTICS_TEST_CASE(test_read_data, record, 0, 0);
-	ELLIPTICS_TEST_CASE(test_read_data, record, 0, 1);
-	ELLIPTICS_TEST_CASE(test_read_data, record, 0, std::numeric_limits<uint64_t>::max());
-	ELLIPTICS_TEST_CASE(test_read_data, record, 1, 0);
-	ELLIPTICS_TEST_CASE(test_read_data, record, 2, 1);
-	ELLIPTICS_TEST_CASE(test_read_data, record, 3, std::numeric_limits<uint64_t>::max());
-	ELLIPTICS_TEST_CASE(test_read, record, 0, 0);
-	ELLIPTICS_TEST_CASE(test_read, record, 0, 1);
-	ELLIPTICS_TEST_CASE(test_read, record, 0, std::numeric_limits<uint64_t>::max());
-	ELLIPTICS_TEST_CASE(test_read, record, 1, 0);
-	ELLIPTICS_TEST_CASE(test_read, record, 2, 1);
-	ELLIPTICS_TEST_CASE(test_read, record, 3, std::numeric_limits<uint64_t>::max());
-
-	record.json = R"json({
-		"record": {
-			"key": "key",
-			"useful": "some useful info about the key"}
-	})json";
-	record.json_timestamp = dnet_time{11,22};
-	ELLIPTICS_TEST_CASE(test_update_json, record);
-	ELLIPTICS_TEST_CASE(test_read_json, record);
-	ELLIPTICS_TEST_CASE(test_read_data, record, 0, 0);
-
-	record.json = "";
-	record.json_timestamp = dnet_time{12,23};
-	ELLIPTICS_TEST_CASE(test_update_json, record);
-	ELLIPTICS_TEST_CASE(test_read_json, record);
-	ELLIPTICS_TEST_CASE(test_read_data, record, 0, 0);
-
-	ELLIPTICS_TEST_CASE(test_update_bigger_json, record);
-
-	record.key = {"chunked_key"};
-	record.json_timestamp = record.timestamp;
-	ELLIPTICS_TEST_CASE(test_write_chunked, record);
-
-	ELLIPTICS_TEST_CASE(test_update_json_noexist);
-	ELLIPTICS_TEST_CASE(test_update_json_uncommitted);
-
-	ELLIPTICS_TEST_CASE_NOARGS(test_old_write_new_read_compatibility);
-	ELLIPTICS_TEST_CASE_NOARGS(test_new_write_old_read_compatibility);
-
-	ELLIPTICS_TEST_CASE_NOARGS(test_read_corrupted_json);
-	ELLIPTICS_TEST_CASE_NOARGS(test_read_json_with_corrupted_data_part);
-	ELLIPTICS_TEST_CASE_NOARGS(test_read_json_with_big_capacity_and_corrupted_data_part);
-	ELLIPTICS_TEST_CASE_NOARGS(test_read_data_with_corrupted_json);
-	ELLIPTICS_TEST_CASE_NOARGS(test_read_data_with_corrupted_json_with_big_capacity);
-	ELLIPTICS_TEST_CASE_NOARGS(test_read_data_with_corrupted_data);
-	ELLIPTICS_TEST_CASE_NOARGS(test_read_data_part_with_corrupted_first_data);
-	ELLIPTICS_TEST_CASE_NOARGS(test_read_data_part_with_corrupted_second_data);
-}
-
-bu::test_suite *setup_tests(int argc, char *argv[]) {
+tests::nodes_data::ptr configure_test_setup_from_args(int argc, char *argv[]) {
 	namespace bpo = boost::program_options;
 
 	bpo::variables_map vm;
@@ -1150,21 +1170,49 @@ bu::test_suite *setup_tests(int argc, char *argv[]) {
 		return nullptr;
 	}
 
-	auto suite = new bu::test_suite("Local Test Suite");
-
-	configure_servers(path);
-
-	register_tests(suite);
-	test_all_with_ack_filter::register_tests(suite);
-
-	return suite;
+	return tests::configure_test_setup(path);
 }
 
-} // namespace
 
-int main(int argc, char *argv[]) {
-	atexit([] { servers.reset(); });
+//
+// Common test initialization routine.
+//
+using namespace tests;
+using namespace boost::unit_test;
 
-	srand(time(0));
-	return bu::unit_test_main(setup_tests, argc, argv);
+//FIXME: forced to use global variable and plain function wrapper
+// because of the way how init_test_main works in boost.test,
+// introducing a global fixture would be a proper way to handle
+// global test setup
+namespace {
+
+std::shared_ptr<nodes_data> setup;
+
+nodes_data *get_setup()
+{
+	return setup.get();
+}
+
+bool init_func()
+{
+	return all::register_tests(setup.get())
+		&& all_with_ack_filter::register_tests(setup.get())
+		;
+}
+
+}
+
+int main(int argc, char *argv[])
+{
+	srand(time(nullptr));
+
+	// we own our test setup
+	setup = configure_test_setup_from_args(argc, argv);
+
+	int result = unit_test_main(init_func, argc, argv);
+
+	// disassemble setup explicitly, to be sure about where its lifetime ends
+	setup.reset();
+
+	return result;
 }

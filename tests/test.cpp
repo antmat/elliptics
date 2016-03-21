@@ -18,6 +18,7 @@
 #include <algorithm>
 
 #define BOOST_TEST_NO_MAIN
+#define BOOST_TEST_ALTERNATIVE_INIT_API
 #include <boost/test/included/unit_test.hpp>
 
 #include <boost/program_options.hpp>
@@ -27,9 +28,7 @@ using namespace boost::unit_test;
 
 namespace tests {
 
-static std::shared_ptr<nodes_data> global_data;
-
-static void configure_nodes(const std::vector<std::string> &remotes, const std::string &path)
+static nodes_data::ptr configure_test_setup(const std::vector<std::string> &remotes, const std::string &path)
 {
 #ifndef NO_SERVER
 	if (remotes.empty()) {
@@ -47,10 +46,10 @@ static void configure_nodes(const std::vector<std::string> &remotes, const std::
 			)
 		}), path);
 
-		global_data = start_nodes(start_config);
+		return start_nodes(start_config);
 	} else
 #endif // NO_SERVER
-		global_data = start_nodes(results_reporter::get_stream(), remotes, path);
+		return start_nodes(results_reporter::get_stream(), remotes, path);
 }
 
 static void test_cache_write(session &sess, int num)
@@ -1437,79 +1436,76 @@ static void test_requests_to_own_server(session &sess)
 }
 #endif
 
-bool register_tests(test_suite *suite, node n)
+bool register_tests(const nodes_data *setup)
 {
-	ELLIPTICS_TEST_CASE(test_cache_write, create_session(n, { 1, 2 }, 0, DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY), 1000);
-	ELLIPTICS_TEST_CASE(test_cache_read, create_session(n, { 1, 2 }, 0, DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY | DNET_IO_FLAGS_NOCSUM), 1000, 20);
-	ELLIPTICS_TEST_CASE(test_cache_delete, create_session(n, { 1, 2 }, 0, DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY), 1000, 20);
-	ELLIPTICS_TEST_CASE(test_cache_and_no, create_session(n, {1, 2}, 0, 0), "cache-and-no-key");
-	ELLIPTICS_TEST_CASE(test_cache_populating, create_session(n, {1, 2}, 0, 0), "cache-populated-key", "cache-data");
-	ELLIPTICS_TEST_CASE(test_write, create_session(n, {1, 2}, 0, DNET_IO_FLAGS_CACHE), "new-id", "new-data");
-	ELLIPTICS_TEST_CASE(test_write, create_session(n, {1, 2}, 0, DNET_IO_FLAGS_CACHE), "new-id", "new-data-long");
-	ELLIPTICS_TEST_CASE(test_write, create_session(n, {1, 2}, 0, DNET_IO_FLAGS_CACHE), "new-id", "short");
-	ELLIPTICS_TEST_CASE(test_remove, create_session(n, {1, 2}, 0, DNET_IO_FLAGS_CACHE), "new-id");
-	ELLIPTICS_TEST_CASE(test_write, create_session(n, {1, 2}, 0, 0), "new-id-real", "new-data");
-	ELLIPTICS_TEST_CASE(test_write, create_session(n, {1, 2}, 0, 0), "new-id-real", "new-data-long");
-	ELLIPTICS_TEST_CASE(test_write, create_session(n, {1, 2}, 0, 0), "new-id-real", "short");
-	ELLIPTICS_TEST_CASE(test_remove, create_session(n, {1, 2}, 0, 0), "new-id-real");
-	ELLIPTICS_TEST_CASE(test_recovery, create_session(n, {1, 2}, 0, 0), "recovery-id", "recovered-data");
-	ELLIPTICS_TEST_CASE(test_indexes, create_session(n, {1, 2}, 0, 0));
-	ELLIPTICS_TEST_CASE(test_more_indexes, create_session(n, {1, 2}, 0, 0));
-	ELLIPTICS_TEST_CASE(test_indexes_metadata, create_session(n, {1, 2}, 0, 0));
-	ELLIPTICS_TEST_CASE(test_error, create_session(n, {99}, 0, 0), "non-existen-key", -ENXIO);
-	ELLIPTICS_TEST_CASE(test_error, create_session(n, {1, 2}, 0, 0), "non-existen-key", -ENOENT);
-	ELLIPTICS_TEST_CASE(test_lookup, create_session(n, {1, 2}, 0, 0), "2.xml", "lookup data");
-	ELLIPTICS_TEST_CASE(test_lookup, create_session(n, {1, 2}, 0, DNET_IO_FLAGS_CACHE), "cache-2.xml", "lookup data");
-	ELLIPTICS_TEST_CASE(test_cas, create_session(n, {1, 2}, 0, DNET_IO_FLAGS_CHECKSUM));
-	ELLIPTICS_TEST_CASE(test_append, create_session(n, {1, 2}, 0, DNET_IO_FLAGS_CACHE));
-	ELLIPTICS_TEST_CASE(test_read_write_offsets, create_session(n, {1, 2}, 0, DNET_IO_FLAGS_CACHE));
-	ELLIPTICS_TEST_CASE(test_commit, create_session(n, {1, 2}, 0, 0));
-	ELLIPTICS_TEST_CASE(test_prepare_commit, create_session(n, {1, 2}, 0, 0), "prepare-commit-test-1", 0, 0);
-	ELLIPTICS_TEST_CASE(test_prepare_commit, create_session(n, {1, 2}, 0, 0), "prepare-commit-test-2", 0, 1);
-	ELLIPTICS_TEST_CASE(test_prepare_commit, create_session(n, {1, 2}, 0, 0), "prepare-commit-test-3", 1, 0);
-	ELLIPTICS_TEST_CASE(test_prepare_commit, create_session(n, {1, 2}, 0, 0), "prepare-commit-test-4", 1, 1);
-	ELLIPTICS_TEST_CASE(test_prepare_commit_simultaneously, create_session(n, {1, 2}, 0, 0));
-	ELLIPTICS_TEST_CASE(test_bulk_write, create_session(n, {1, 2}, 0, 0), 1000);
-	ELLIPTICS_TEST_CASE(test_bulk_read, create_session(n, {1, 2}, 0, 0), 1000);
-	ELLIPTICS_TEST_CASE(test_bulk_remove, create_session(n, {1, 2}, 0, 0), 1000);
-	ELLIPTICS_TEST_CASE(test_range_request, create_session(n, {2}, 0, 0), 0, 255, 2);
-	ELLIPTICS_TEST_CASE(test_range_request, create_session(n, {2}, 0, 0), 3, 14, 2);
-	ELLIPTICS_TEST_CASE(test_range_request, create_session(n, {2}, 0, 0), 7, 3, 2);
-	ELLIPTICS_TEST_CASE(test_metadata, create_session(n, {1, 2}, 0, 0), "metadata-key", "meta-data");
-	ELLIPTICS_TEST_CASE(test_partial_bulk_read, create_session(n, {1, 2, 3}, 0, 0));
-	ELLIPTICS_TEST_CASE(test_indexes_update, create_session(n, {2}, 0, 0));
-	ELLIPTICS_TEST_CASE(test_prepare_latest, create_session(n, {1, 2}, 0, 0), "prepare-latest-key");
-	ELLIPTICS_TEST_CASE(test_partial_lookup, create_session(n, {1, 2}, 0, 0), "partial-lookup-key");
-	ELLIPTICS_TEST_CASE(test_parallel_lookup, create_session(n, {1, 2, 3}, 0, 0), "parallel-lookup-key");
-	ELLIPTICS_TEST_CASE(test_quorum_lookup, create_session(n, {1, 2, 3}, 0, 0), "quorum-lookup-key");
-	ELLIPTICS_TEST_CASE(test_partial_quorum_lookup, create_session(n, {1, 2, 3}, 0, 0), "partial-quorum-lookup-key");
-	ELLIPTICS_TEST_CASE(test_fail_partial_quorum_lookup, create_session(n, {1, 2, 3}, 0, 0), "fail-partial-quorum-lookup-key");
-	ELLIPTICS_TEST_CASE(test_fail_parallel_lookup, create_session(n, {1, 2, 3}, 0, 0), -ENOENT);
-	ELLIPTICS_TEST_CASE(test_fail_parallel_lookup, create_session(n, {91, 92, 93}, 0, 0), -ENXIO);
-	ELLIPTICS_TEST_CASE(test_fail_quorum_lookup, create_session(n, {1, 2, 3}, 0, 0), -ENOENT);
-	ELLIPTICS_TEST_CASE(test_fail_quorum_lookup, create_session(n, {91, 92, 93}, 0, 0), -ENXIO);
-	ELLIPTICS_TEST_CASE(test_read_latest_non_existing, create_session(n, {1, 2}, 0, 0), "read-latest-non-existing");
-	ELLIPTICS_TEST_CASE(test_merge_indexes, create_session(n, { 1, 2 }, 0, 0), "one", checkers::at_least_one);
-	ELLIPTICS_TEST_CASE(test_merge_indexes, create_session(n, { 1, 2 }, 0, 0), "quorum", checkers::quorum);
-	ELLIPTICS_TEST_CASE(test_merge_indexes, create_session(n, { 1, 2 }, 0, 0), "all", checkers::all);
-	ELLIPTICS_TEST_CASE(test_index_recovery, create_session(n, { 1, 2 }, 0, 0));
-	ELLIPTICS_TEST_CASE(test_lookup_non_existing, create_session(n, { 1, 2 }, 0, 0), -ENOENT);
-	ELLIPTICS_TEST_CASE(test_lookup_non_existing, create_session(n, { 1 }, 0, 0), -ENOENT);
-	ELLIPTICS_TEST_CASE(test_lookup_non_existing, create_session(n, { 99 }, 0, 0), -ENXIO);
-	ELLIPTICS_TEST_CASE(test_read_mix_states_ioflags, create_session(n, {1, 2}, 0, 0), "read-mix-states-ioflags");
+	auto n = setup->node->get_native();
+
+	ELLIPTICS_TEST_CASE(test_cache_write, use_session(n, { 1, 2 }, 0, DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY), 1000);
+	ELLIPTICS_TEST_CASE(test_cache_read, use_session(n, { 1, 2 }, 0, DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY | DNET_IO_FLAGS_NOCSUM), 1000, 20);
+	ELLIPTICS_TEST_CASE(test_cache_delete, use_session(n, { 1, 2 }, 0, DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY), 1000, 20);
+	ELLIPTICS_TEST_CASE(test_cache_and_no, use_session(n, {1, 2}, 0, 0), "cache-and-no-key");
+	ELLIPTICS_TEST_CASE(test_cache_populating, use_session(n, {1, 2}, 0, 0), "cache-populated-key", "cache-data");
+	ELLIPTICS_TEST_CASE(test_write, use_session(n, {1, 2}, 0, DNET_IO_FLAGS_CACHE), "new-id", "new-data");
+	ELLIPTICS_TEST_CASE(test_write, use_session(n, {1, 2}, 0, DNET_IO_FLAGS_CACHE), "new-id", "new-data-long");
+	ELLIPTICS_TEST_CASE(test_write, use_session(n, {1, 2}, 0, DNET_IO_FLAGS_CACHE), "new-id", "short");
+	ELLIPTICS_TEST_CASE(test_remove, use_session(n, {1, 2}, 0, DNET_IO_FLAGS_CACHE), "new-id");
+	ELLIPTICS_TEST_CASE(test_write, use_session(n, {1, 2}, 0, 0), "new-id-real", "new-data");
+	ELLIPTICS_TEST_CASE(test_write, use_session(n, {1, 2}, 0, 0), "new-id-real", "new-data-long");
+	ELLIPTICS_TEST_CASE(test_write, use_session(n, {1, 2}, 0, 0), "new-id-real", "short");
+	ELLIPTICS_TEST_CASE(test_remove, use_session(n, {1, 2}, 0, 0), "new-id-real");
+	ELLIPTICS_TEST_CASE(test_recovery, use_session(n, {1, 2}, 0, 0), "recovery-id", "recovered-data");
+	ELLIPTICS_TEST_CASE(test_indexes, use_session(n, {1, 2}, 0, 0));
+	ELLIPTICS_TEST_CASE(test_more_indexes, use_session(n, {1, 2}, 0, 0));
+	ELLIPTICS_TEST_CASE(test_indexes_metadata, use_session(n, {1, 2}, 0, 0));
+	ELLIPTICS_TEST_CASE(test_error, use_session(n, {99}, 0, 0), "non-existen-key", -ENXIO);
+	ELLIPTICS_TEST_CASE(test_error, use_session(n, {1, 2}, 0, 0), "non-existen-key", -ENOENT);
+	ELLIPTICS_TEST_CASE(test_lookup, use_session(n, {1, 2}, 0, 0), "2.xml", "lookup data");
+	ELLIPTICS_TEST_CASE(test_lookup, use_session(n, {1, 2}, 0, DNET_IO_FLAGS_CACHE), "cache-2.xml", "lookup data");
+	ELLIPTICS_TEST_CASE(test_cas, use_session(n, {1, 2}, 0, DNET_IO_FLAGS_CHECKSUM));
+	ELLIPTICS_TEST_CASE(test_append, use_session(n, {1, 2}, 0, DNET_IO_FLAGS_CACHE));
+	ELLIPTICS_TEST_CASE(test_read_write_offsets, use_session(n, {1, 2}, 0, DNET_IO_FLAGS_CACHE));
+	ELLIPTICS_TEST_CASE(test_commit, use_session(n, {1, 2}, 0, 0));
+	ELLIPTICS_TEST_CASE(test_prepare_commit, use_session(n, {1, 2}, 0, 0), "prepare-commit-test-1", 0, 0);
+	ELLIPTICS_TEST_CASE(test_prepare_commit, use_session(n, {1, 2}, 0, 0), "prepare-commit-test-2", 0, 1);
+	ELLIPTICS_TEST_CASE(test_prepare_commit, use_session(n, {1, 2}, 0, 0), "prepare-commit-test-3", 1, 0);
+	ELLIPTICS_TEST_CASE(test_prepare_commit, use_session(n, {1, 2}, 0, 0), "prepare-commit-test-4", 1, 1);
+	ELLIPTICS_TEST_CASE(test_prepare_commit_simultaneously, use_session(n, {1, 2}, 0, 0));
+	ELLIPTICS_TEST_CASE(test_bulk_write, use_session(n, {1, 2}, 0, 0), 1000);
+	ELLIPTICS_TEST_CASE(test_bulk_read, use_session(n, {1, 2}, 0, 0), 1000);
+	ELLIPTICS_TEST_CASE(test_bulk_remove, use_session(n, {1, 2}, 0, 0), 1000);
+	ELLIPTICS_TEST_CASE(test_range_request, use_session(n, {2}, 0, 0), 0, 255, 2);
+	ELLIPTICS_TEST_CASE(test_range_request, use_session(n, {2}, 0, 0), 3, 14, 2);
+	ELLIPTICS_TEST_CASE(test_range_request, use_session(n, {2}, 0, 0), 7, 3, 2);
+	ELLIPTICS_TEST_CASE(test_metadata, use_session(n, {1, 2}, 0, 0), "metadata-key", "meta-data");
+	ELLIPTICS_TEST_CASE(test_partial_bulk_read, use_session(n, {1, 2, 3}, 0, 0));
+	ELLIPTICS_TEST_CASE(test_indexes_update, use_session(n, {2}, 0, 0));
+	ELLIPTICS_TEST_CASE(test_prepare_latest, use_session(n, {1, 2}, 0, 0), "prepare-latest-key");
+	ELLIPTICS_TEST_CASE(test_partial_lookup, use_session(n, {1, 2}, 0, 0), "partial-lookup-key");
+	ELLIPTICS_TEST_CASE(test_parallel_lookup, use_session(n, {1, 2, 3}, 0, 0), "parallel-lookup-key");
+	ELLIPTICS_TEST_CASE(test_quorum_lookup, use_session(n, {1, 2, 3}, 0, 0), "quorum-lookup-key");
+	ELLIPTICS_TEST_CASE(test_partial_quorum_lookup, use_session(n, {1, 2, 3}, 0, 0), "partial-quorum-lookup-key");
+	ELLIPTICS_TEST_CASE(test_fail_partial_quorum_lookup, use_session(n, {1, 2, 3}, 0, 0), "fail-partial-quorum-lookup-key");
+	ELLIPTICS_TEST_CASE(test_fail_parallel_lookup, use_session(n, {1, 2, 3}, 0, 0), -ENOENT);
+	ELLIPTICS_TEST_CASE(test_fail_parallel_lookup, use_session(n, {91, 92, 93}, 0, 0), -ENXIO);
+	ELLIPTICS_TEST_CASE(test_fail_quorum_lookup, use_session(n, {1, 2, 3}, 0, 0), -ENOENT);
+	ELLIPTICS_TEST_CASE(test_fail_quorum_lookup, use_session(n, {91, 92, 93}, 0, 0), -ENXIO);
+	ELLIPTICS_TEST_CASE(test_read_latest_non_existing, use_session(n, {1, 2}, 0, 0), "read-latest-non-existing");
+	ELLIPTICS_TEST_CASE(test_merge_indexes, use_session(n, { 1, 2 }, 0, 0), "one", checkers::at_least_one);
+	ELLIPTICS_TEST_CASE(test_merge_indexes, use_session(n, { 1, 2 }, 0, 0), "quorum", checkers::quorum);
+	ELLIPTICS_TEST_CASE(test_merge_indexes, use_session(n, { 1, 2 }, 0, 0), "all", checkers::all);
+	ELLIPTICS_TEST_CASE(test_index_recovery, use_session(n, { 1, 2 }, 0, 0));
+	ELLIPTICS_TEST_CASE(test_lookup_non_existing, use_session(n, { 1, 2 }, 0, 0), -ENOENT);
+	ELLIPTICS_TEST_CASE(test_lookup_non_existing, use_session(n, { 1 }, 0, 0), -ENOENT);
+	ELLIPTICS_TEST_CASE(test_lookup_non_existing, use_session(n, { 99 }, 0, 0), -ENXIO);
+	ELLIPTICS_TEST_CASE(test_read_mix_states_ioflags, use_session(n, {1, 2}, 0, 0), "read-mix-states-ioflags");
 #ifndef NO_SERVER
-	ELLIPTICS_TEST_CASE(test_requests_to_own_server, create_session(node::from_raw(global_data->nodes.front().get_native()), { 1, 2, 3 }, 0, 0));
+	ELLIPTICS_TEST_CASE(test_requests_to_own_server, use_session(setup->nodes.front().get_native(), { 1, 2, 3 }, 0, 0));
 #endif
 
 	return true;
 }
 
-static void destroy_global_data()
-{
-	global_data.reset();
-}
-
-boost::unit_test::test_suite *register_tests(int argc, char *argv[])
+nodes_data::ptr configure_test_setup_from_args(int argc, char *argv[])
 {
 	namespace bpo = boost::program_options;
 
@@ -1537,20 +1533,44 @@ boost::unit_test::test_suite *register_tests(int argc, char *argv[])
 		return NULL;
 	}
 
-	test_suite *suite = new test_suite("Local Test Suite");
+	return configure_test_setup(remotes, path);
+}
 
-	configure_nodes(remotes, path);
+}
 
-	register_tests(suite, *global_data->node);
 
-	return suite;
+//
+// Common test initialization routine.
+//
+using namespace tests;
+using namespace boost::unit_test;
+
+//FIXME: forced to use global variable and plain function wrapper
+// because of the way how init_test_main works in boost.test,
+// introducing a global fixture would be a proper way to handle
+// global test setup
+namespace {
+
+std::shared_ptr<nodes_data> setup;
+
+bool init_func()
+{
+	return register_tests(setup.get());
 }
 
 }
 
 int main(int argc, char *argv[])
 {
-	srand(time(0));
-	atexit(tests::destroy_global_data);
-	return unit_test_main(tests::register_tests, argc, argv);
+	srand(time(nullptr));
+
+	// we own our test setup
+	setup = configure_test_setup_from_args(argc, argv);
+
+	int result = unit_test_main(init_func, argc, argv);
+
+	// disassemble setup explicitly, to be sure about where its lifetime ends
+	setup.reset();
+
+	return result;
 }

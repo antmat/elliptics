@@ -16,6 +16,7 @@
 #include "test_base.hpp"
 
 #define BOOST_TEST_NO_MAIN
+#define BOOST_TEST_ALTERNATIVE_INIT_API
 #include <boost/test/included/unit_test.hpp>
 
 #include <boost/program_options.hpp>
@@ -25,12 +26,10 @@ using namespace boost::unit_test;
 
 namespace tests {
 
-static std::shared_ptr<nodes_data> global_data;
-
 constexpr int group = 1;
 constexpr int backend_id = 1;
 
-static void configure_nodes(const std::string &path) {
+static nodes_data::ptr configure_test_setup(const std::string &path) {
 	std::vector<server_config> servers {
 		[] () {
 			auto ret = server_config::default_value();
@@ -53,7 +52,7 @@ static void configure_nodes(const std::string &path) {
 	start_nodes_config start_config(results_reporter::get_stream(), std::move(servers), path);
 	start_config.fork = true;
 
-	global_data = start_nodes(start_config);
+	return start_nodes(start_config);
 }
 
 /* The test validates doping request on server-side after 1 seconds by follow:
@@ -67,9 +66,9 @@ static void configure_nodes(const std::string &path) {
  *   queue timeout - it has spent about 1,5 seconds in io queue while the only io thread slept on the backend delay
  * * send another read command and check that it is succeeded - there should be no aftereffect.
  */
-static void test_queue_timeout(session &s) {
+static void test_queue_timeout(session &s, const nodes_data *setup) {
 	// check that test have only one node
-	BOOST_REQUIRE(global_data->nodes.size() == 1);
+	BOOST_REQUIRE(setup->nodes.size() == 1);
 
 	// test key and data
 	std::string key = "queue timeout test key";
@@ -79,7 +78,7 @@ static void test_queue_timeout(session &s) {
 	// write test key/data
 	ELLIPTICS_REQUIRE(async_write, s.write_data(key, data, 0));
 
-	const auto &node = global_data->nodes.front();
+	const auto &node = setup->nodes.front();
 	// sets 1,5 seconds delay to the only backend on the only node
 	constexpr uint64_t delay_ms = 1500;
 	s.set_delay(node.remote(), backend_id, delay_ms).get();
@@ -104,13 +103,15 @@ static void test_queue_timeout(session &s) {
 	}
 }
 
-static bool register_tests(test_suite *suite, node n) {
+static bool register_tests(const nodes_data *setup) {
+	auto n = setup->node->get_native();
 
-	ELLIPTICS_TEST_CASE(test_queue_timeout, create_session(n, { group }, 0, 0));
+	ELLIPTICS_TEST_CASE(test_queue_timeout, use_session(n, { group }, 0, 0), setup);
+
 	return true;
 }
 
-boost::unit_test::test_suite *register_tests(int argc, char *argv[]) {
+nodes_data::ptr configure_test_setup_from_args(int argc, char *argv[]) {
 	namespace bpo = boost::program_options;
 
 	bpo::variables_map vm;
@@ -131,18 +132,44 @@ boost::unit_test::test_suite *register_tests(int argc, char *argv[]) {
 		return nullptr;
 	}
 
-	auto suite = new test_suite("Local Test Suite");
-	configure_nodes(path);
-	register_tests(suite, *global_data->node);
-
-	return suite;
+	return configure_test_setup(path);
 }
 
 } /* namespace tests */
 
-int main(int argc, char *argv[]) {
-	atexit([] () { tests::global_data.reset(); });
 
+//
+// Common test initialization routine.
+//
+using namespace tests;
+using namespace boost::unit_test;
+
+//FIXME: forced to use global variable and plain function wrapper
+// because of the way how init_test_main works in boost.test,
+// introducing a global fixture would be a proper way to handle
+// global test setup
+namespace {
+
+std::shared_ptr<nodes_data> setup;
+
+bool init_func()
+{
+	return register_tests(setup.get());
+}
+
+}
+
+int main(int argc, char *argv[])
+{
 	srand(time(nullptr));
-	return unit_test_main(tests::register_tests, argc, argv);
+
+	// we own our test setup
+	setup = configure_test_setup_from_args(argc, argv);
+
+	int result = unit_test_main(init_func, argc, argv);
+
+	// disassemble setup explicitly, to be sure about where its lifetime ends
+	setup.reset();
+
+	return result;
 }

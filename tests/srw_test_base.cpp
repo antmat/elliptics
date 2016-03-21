@@ -25,14 +25,14 @@
 
 namespace {
 
-tests::node_info node_info_create(tests::nodes_data &data, const std::vector<int> &groups)
+tests::node_info node_info_create(const tests::nodes_data *setup, const std::vector<int> &groups)
 {
     tests::node_info info;
 
     info.groups = groups;
-    info.path = data.directory.path();
-    for (auto it = data.nodes.begin(); it != data.nodes.end(); ++it) {
-        info.remotes.push_back(it->remote().to_string_with_family());
+    info.path = setup->directory.path();
+    for (const auto &i : setup->nodes) {
+        info.remotes.push_back(i.remote().to_string_with_family());
     }
 
     return info;
@@ -158,17 +158,17 @@ void upload_application(int locator_port, const std::string &app_name, const std
     }
 }
 
-void init_application_impl(session &sess, const std::string &app_name, nodes_data &data)
+void init_application_impl(session &sess, const std::string &app_name, const nodes_data *setup)
 {
     sess.set_timeout(600);
     dnet_log_only_log(&sess.get_logger(), DNET_LOG_INFO, "Sending @init");
 
-    node_info info = node_info_create(data, sess.get_groups());
+    node_info info = node_info_create(setup, sess.get_groups());
 
     ELLIPTICS_REQUIRE(exec_result, sess.exec(NULL, app_name + "@init", info.pack()));
 
     sync_exec_result result = exec_result;
-    BOOST_REQUIRE_EQUAL(result.size(), data.nodes.size());
+    BOOST_REQUIRE_EQUAL(result.size(), setup->nodes.size());
     for (auto it = result.begin(); it != result.end(); ++it)
         BOOST_REQUIRE_EQUAL(it->context().data().to_string(), "inited");
 }

@@ -49,53 +49,65 @@ using namespace ioremap::elliptics;
 #define ELLIPTICS_CHECK_ERROR(R, C, E) ELLIPTICS_CHECK_ERROR_IMPL(R, (C), (E), BOOST_CHECK_MESSAGE)
 #define ELLIPTICS_REQUIRE_ERROR(R, C, E) ELLIPTICS_CHECK_ERROR_IMPL(R, (C), (E), BOOST_REQUIRE_MESSAGE)
 
-struct test_wrapper
+
+//
+// test_wrapper_with_session hold and report test names
+// and also acts as kind of client session fixture.
+//
+//XXX: consider dropping all this and make a use of Boost.Test auto macros
+// as well as a use of fixtures; or, even better, move to gtest,
+// then all this stuff with test names construction will be unnecessary
+//
+
+typedef std::tuple<dnet_node *, std::vector<int>, uint64_t, uint32_t> session_create_args;
+
+// special kind of wrapper for tests which require client session
+struct test_wrapper_with_session
 {
-	std::shared_ptr<ioremap::elliptics::logger> logger;
 	std::string test_name;
-	std::function<void ()> test_body;
+	session_create_args session_args;
+	std::function<void (session &client)> test_body;
 
 	void operator() () const;
 };
 
+// Special test maker for tests which require client session.
+// Note that args needed to create client session must come second to test method.
 template <typename Method, typename... Args>
-std::function<void ()> make(const char *test_name, Method method, session sess, Args... args)
+std::function<void ()> make(const char *test_name, Method method, session_create_args session_args, Args... args)
 {
-	uint64_t trace_id = 0;
-	auto buffer = reinterpret_cast<unsigned char *>(&trace_id);
-	for (size_t i = 0; i < sizeof(trace_id); ++i) {
-		buffer[i] = rand();
-	}
+	namespace ph = std::placeholders;
 
-	sess.set_trace_id(trace_id);
-
-	test_wrapper wrapper = {
-		std::make_shared<ioremap::elliptics::logger>(sess.get_logger(), blackhole::log::attributes_t()),
+	return test_wrapper_with_session{
 		test_name,
-		std::bind(method, sess, std::forward<Args>(args)...)
+		session_args,
+		std::bind(method, ph::_1, std::forward<Args>(args)...)
 	};
-
-	return wrapper;
 }
 
+// General test maker for tests which do not use client session.
 template <typename Method, typename... Args>
 std::function<void ()> make(const char *, Method method, Args... args)
 {
 	return std::bind(method, std::forward<Args>(args)...);
 }
 
+static inline
+session_create_args use_session(dnet_node *n, std::initializer_list<int> groups, uint64_t cflags = 0, uint32_t ioflags = 0)
+{
+	return session_create_args{n, groups, cflags, ioflags};
+}
+
 #define ELLIPTICS_MAKE_TEST(...) \
 	boost::unit_test::make_test_case(tests::make(BOOST_STRINGIZE((__VA_ARGS__)), __VA_ARGS__), BOOST_TEST_STRINGIZE((__VA_ARGS__)))
 
-#ifdef USE_MASTER_SUITE
-#  define ELLIPTICS_TEST_CASE(M, C...) do { framework::master_test_suite().add(ELLIPTICS_MAKE_TEST(M, ##C )); } while (false)
-#  define ELLIPTICS_TEST_CASE_NOARGS(M) do { framework::master_test_suite().add(ELLIPTICS_MAKE_TEST(M)); } while (false)
+#ifndef USE_CUSTOM_SUITE
+#  define ELLIPTICS_TEST_CASE(M, C...) do { boost::unit_test::framework::master_test_suite().add(ELLIPTICS_MAKE_TEST(M, ##C )); } while (false)
+#  define ELLIPTICS_TEST_CASE_NOARGS(M) do { boost::unit_test::framework::master_test_suite().add(ELLIPTICS_MAKE_TEST(M)); } while (false)
 #else
 #  define ELLIPTICS_TEST_CASE(M, C...) do { suite->add(ELLIPTICS_MAKE_TEST(M, ##C )); } while (false)
 #  define ELLIPTICS_TEST_CASE_NOARGS(M) do { suite->add(ELLIPTICS_MAKE_TEST(M)); } while (false)
 #endif
-
-session create_session(node n, std::initializer_list<int> groups, uint64_t cflags, uint32_t ioflags);
 
 class directory_handler
 {
@@ -194,7 +206,7 @@ public:
 	int monitor_port() const;
 	int locator_port() const;
 	pid_t pid() const;
-	dnet_node *get_native();
+	dnet_node *get_native() const;
 
 private:
 	dnet_node *m_node;

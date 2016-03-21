@@ -18,6 +18,7 @@
 #include "../monitor/monitor.hpp"
 
 #define BOOST_TEST_NO_MAIN
+#define BOOST_TEST_ALTERNATIVE_INIT_API
 #include <boost/test/included/unit_test.hpp>
 
 #include <boost/program_options.hpp>
@@ -43,13 +44,6 @@ struct treap_node_traits<tests::test_event>
 }}  /* namespace ioremap::cache */
 
 namespace tests {
-
-static std::shared_ptr<nodes_data> global_data;
-
-static void destroy_global_data()
-{
-	global_data.reset();
-}
 
 class test_event : public ioremap::cache::treap_node_t<test_event> {
 public:
@@ -110,7 +104,7 @@ private:
 #define EVENTS_SIZE (static_cast<int64_t>(EVENTS_LIMIT * sizeof(test_event)))
 #define PERIOD_IN_SECONDS 300
 
-static void configure_nodes(const std::string &path)
+static nodes_data::ptr configure_test_setup(const std::string &path)
 {
 	config_data top_params = config_data()
 		("top_length", TOP_LENGTH)
@@ -124,16 +118,16 @@ static void configure_nodes(const std::string &path)
 		)
 	}), path);
 
-	global_data = start_nodes(start_config);
+	return start_nodes(start_config);
 }
 
 /*
  * Top statistics handler must exist, if "top" section in "monitor" section in config
  * exists. Node's configuration happened in configure_node() function above.
  */
-static void test_top_statistics_existence()
+static void test_top_statistics_existence(const nodes_data *setup)
 {
-	dnet_node *node = global_data->nodes[0].get_native();
+	dnet_node *node = setup->nodes[0].get_native();
 	auto monitor = ioremap::monitor::get_monitor(node);
 	BOOST_CHECK(monitor != nullptr);
 
@@ -431,9 +425,9 @@ static void test_frequent_access()
 			      "then keys with more frequent access must be in top");
 }
 
-bool register_tests(test_suite *suite)
+bool register_tests(const nodes_data *setup)
 {
-	ELLIPTICS_TEST_CASE_NOARGS(test_top_statistics_existence);
+	ELLIPTICS_TEST_CASE(test_top_statistics_existence, setup);
 	ELLIPTICS_TEST_CASE_NOARGS(test_empty_top);
 	ELLIPTICS_TEST_CASE_NOARGS(test_top_list_result_limit);
 	ELLIPTICS_TEST_CASE_NOARGS(test_top_list_result_boundary);
@@ -450,7 +444,7 @@ bool register_tests(test_suite *suite)
 	return true;
 }
 
-boost::unit_test::test_suite *register_tests(int argc, char *argv[])
+nodes_data::ptr configure_test_setup_from_args(int argc, char *argv[])
 {
 	namespace bpo = boost::program_options;
 
@@ -472,19 +466,44 @@ boost::unit_test::test_suite *register_tests(int argc, char *argv[])
 		return NULL;
 	}
 
-	configure_nodes(path);
+	return configure_test_setup(path);
+}
 
-	test_suite *suite = new test_suite("event statistics test suite");
-	register_tests(suite);
+}
 
-	return suite;
+
+//
+// Common test initialization routine.
+//
+using namespace tests;
+using namespace boost::unit_test;
+
+//FIXME: forced to use global variable and plain function wrapper
+// because of the way how init_test_main works in boost.test,
+// introducing a global fixture would be a proper way to handle
+// global test setup
+namespace {
+
+std::shared_ptr<nodes_data> setup;
+
+bool init_func()
+{
+	return register_tests(setup.get());
 }
 
 }
 
 int main(int argc, char *argv[])
 {
-	atexit(tests::destroy_global_data);
-	srand(time(0));
-	return unit_test_main(tests::register_tests, argc, argv);
+	srand(time(nullptr));
+
+	// we own our test setup
+	setup = configure_test_setup_from_args(argc, argv);
+
+	int result = unit_test_main(init_func, argc, argv);
+
+	// disassemble setup explicitly, to be sure about where its lifetime ends
+	setup.reset();
+
+	return result;
 }

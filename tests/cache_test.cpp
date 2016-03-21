@@ -21,6 +21,7 @@
 #include <stdexcept>
 
 #define BOOST_TEST_NO_MAIN
+#define BOOST_TEST_ALTERNATIVE_INIT_API
 #include <boost/test/included/unit_test.hpp>
 
 #include <boost/program_options.hpp>
@@ -30,14 +31,7 @@ using namespace boost::unit_test;
 
 namespace tests {
 
-static std::shared_ptr<nodes_data> global_data;
-
-static void destroy_global_data()
-{
-	global_data.reset();
-}
-
-static void configure_nodes(const std::string &path)
+static nodes_data::ptr configure_test_setup(const std::string &path)
 {
 	start_nodes_config start_config(results_reporter::get_stream(), std::vector<server_config>({
 		server_config::default_value().apply_options(config_data()
@@ -47,7 +41,7 @@ static void configure_nodes(const std::string &path)
 		)
 	}), path);
 
-	global_data = start_nodes(start_config);
+	return start_nodes(start_config);
 }
 
 static void test_cache_timestamp(session &sess)
@@ -81,9 +75,9 @@ static void test_cache_timestamp(session &sess)
 	BOOST_REQUIRE_EQUAL(io->timestamp.tnsec, ctl.io.timestamp.tnsec);
 }
 
-static void test_cache_records_sizes(session &sess)
+static void test_cache_records_sizes(session &sess, const nodes_data *setup)
 {
-	dnet_node *node = global_data->nodes[0].get_native();
+	dnet_node *node = setup->nodes[0].get_native();
 	ioremap::cache::cache_manager *cache = (ioremap::cache::cache_manager*) node->io->backends[0].cache;
 	const size_t cache_size = cache->cache_size();
 	const size_t cache_pages_number = cache->cache_pages_number();
@@ -114,9 +108,9 @@ static void test_cache_records_sizes(session &sess)
 	}
 }
 
-static void test_cache_overflow(session &sess)
+static void test_cache_overflow(session &sess, const nodes_data *setup)
 {
-	dnet_node *node = global_data->nodes[0].get_native();
+	dnet_node *node = setup->nodes[0].get_native();
 	ioremap::cache::cache_manager *cache = (ioremap::cache::cache_manager*) node->io->backends[0].cache;
 	const size_t cache_size = cache->cache_size();
 	const size_t cache_pages_number = cache->cache_pages_number();
@@ -233,9 +227,9 @@ void cache_read_check_lru(session &sess, int id, lru_list_emulator_t& lru_list_e
 	}
 }
 
-static void test_cache_lru_eviction(session &sess)
+static void test_cache_lru_eviction(session &sess, const nodes_data *setup)
 {
-	dnet_node *node = global_data->nodes[0].get_native();
+	dnet_node *node = setup->nodes[0].get_native();
 	ioremap::cache::cache_manager *cache = (ioremap::cache::cache_manager*) node->io->backends[0].cache;
 	const size_t cache_size = cache->cache_size();
 	const size_t cache_pages_number = cache->cache_pages_number();
@@ -292,18 +286,20 @@ std::string generate_data(size_t length)
 	return data;
 }
 
-bool register_tests(test_suite *suite, node n)
+bool register_tests(const nodes_data *setup)
 {
-	ELLIPTICS_TEST_CASE(test_cache_timestamp, create_session(n, { 5 }, 0, DNET_IO_FLAGS_CACHE));
-	ELLIPTICS_TEST_CASE(test_cache_records_sizes, create_session(n, { 5 }, 0, DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY));
-	ELLIPTICS_TEST_CASE(test_cache_overflow, create_session(n, { 5 }, 0, DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY));
-	ELLIPTICS_TEST_CASE(test_cache_overflow, create_session(n, { 5 }, 0, DNET_IO_FLAGS_CACHE));
-	ELLIPTICS_TEST_CASE(test_cache_lru_eviction, create_session(n, { 5 }, 0, DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY));
+	auto n = setup->node->get_native();
+
+	ELLIPTICS_TEST_CASE(test_cache_timestamp, use_session(n, { 5 }, 0, DNET_IO_FLAGS_CACHE));
+	ELLIPTICS_TEST_CASE(test_cache_records_sizes, use_session(n, { 5 }, 0, DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY), setup);
+	ELLIPTICS_TEST_CASE(test_cache_overflow, use_session(n, { 5 }, 0, DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY), setup);
+	ELLIPTICS_TEST_CASE(test_cache_overflow, use_session(n, { 5 }, 0, DNET_IO_FLAGS_CACHE), setup);
+	ELLIPTICS_TEST_CASE(test_cache_lru_eviction, use_session(n, { 5 }, 0, DNET_IO_FLAGS_CACHE | DNET_IO_FLAGS_CACHE_ONLY), setup);
 
 	return true;
 }
 
-boost::unit_test::test_suite *register_tests(int argc, char *argv[])
+nodes_data::ptr configure_test_setup_from_args(int argc, char *argv[])
 {
 	namespace bpo = boost::program_options;
 
@@ -325,20 +321,43 @@ boost::unit_test::test_suite *register_tests(int argc, char *argv[])
 		return NULL;
 	}
 
-	test_suite *suite = new test_suite("Local Test Suite");
+	return configure_test_setup(path);
+}
 
-	configure_nodes(path);
+}
 
-	register_tests(suite, *global_data->node);
+//
+// Common test initialization routine.
+//
+using namespace tests;
+using namespace boost::unit_test;
 
-	return suite;
+//FIXME: forced to use global variable and plain function wrapper
+// because of the way how init_test_main works in boost.test,
+// introducing a global fixture would be a proper way to handle
+// global test setup
+namespace {
+
+std::shared_ptr<nodes_data> setup;
+
+bool init_func()
+{
+	return register_tests(setup.get());
 }
 
 }
 
 int main(int argc, char *argv[])
 {
-	atexit(tests::destroy_global_data);
-	srand(time(0));
-	return unit_test_main(tests::register_tests, argc, argv);
+	srand(time(nullptr));
+
+	// we own our test setup
+	setup = configure_test_setup_from_args(argc, argv);
+
+	int result = unit_test_main(init_func, argc, argv);
+
+	// disassemble setup explicitly, to be sure about where its lifetime ends
+	setup.reset();
+
+	return result;
 }
