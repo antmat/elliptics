@@ -63,6 +63,13 @@ void test_wrapper_with_session::operator() () const
 
 	session client(n);
 
+	uint64_t trace_id = 0;
+	auto buffer = reinterpret_cast<unsigned char *>(&trace_id);
+	for (size_t i = 0; i < sizeof(trace_id); ++i) {
+		buffer[i] = rand();
+	}
+	client.set_trace_id(trace_id);
+
 	// differentiate in the log clients used to do test actions
 	// from other kinds of elliptics clients
 	client.get_logger().log().add_attribute({"source", {"in-test-client"}});
@@ -74,13 +81,6 @@ void test_wrapper_with_session::operator() () const
 	client.set_ioflags(ioflags);
 
 	client.set_exceptions_policy(session::no_exceptions);
-
-	uint64_t trace_id = 0;
-	auto buffer = reinterpret_cast<unsigned char *>(&trace_id);
-	for (size_t i = 0; i < sizeof(trace_id); ++i) {
-		buffer[i] = rand();
-	}
-	client.set_trace_id(trace_id);
 
 	test_body(client);
 
