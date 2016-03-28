@@ -29,6 +29,7 @@
 #include "elliptics.h"
 
 #include <cocaine/context.hpp>
+#include <cocaine/hpack/header.hpp>
 #include <cocaine/api/stream.hpp>
 #include <cocaine/rpc/actor.hpp>
 #include <cocaine/service/node.hpp>
@@ -280,7 +281,7 @@ public:
 
 	// write() is called when worker sends chunk to the response stream.
 	// write() performs transfer of data back to elliptics client.
-	virtual stream_t& write(const std::string& chunk) {
+	virtual auto write(cocaine::hpack::header_storage_t, const std::string& chunk) -> stream_t& {
 		if (chunk.empty()) {
 			SRW_LOG(*logger_, DNET_LOG_DEBUG, app_, "%s: stream: got chunk from app, size 0 -- 'drop me' signal", signature_);
 			// empty chunk is a signal of chaining: the worker will not provide
@@ -301,7 +302,7 @@ public:
 		return *this;
 	}
 
-	virtual void error(const std::error_code& code, const std::string& reason) {
+	virtual auto error(cocaine::hpack::header_storage_t, const std::error_code& code, const std::string& reason) -> void {
 		SRW_LOG(*logger_, DNET_LOG_ERROR, app_, "%s: stream: got error from app, %s: (%d) %s", signature_, reason, code.value(), code.message());
 		if (auto client = client_.lock()) {
 			client->finish(code.value());
@@ -319,7 +320,7 @@ public:
 		}
 	}
 
-	virtual void close() {
+	virtual auto close(cocaine::hpack::header_storage_t) -> void {
 		SRW_LOG(*logger_, DNET_LOG_DEBUG, app_, "%s: stream: got close", signature_);
 		if (auto client = client_.lock()) {
 			client->finish();
@@ -367,7 +368,7 @@ public:
 		SRW_LOG(*logger_, DNET_LOG_DEBUG, app_, "%s: stream: close", signature_);
 	}
 
-	virtual stream_t& write(const std::string& chunk) {
+	virtual auto write(cocaine::hpack::header_storage_t, const std::string& chunk) -> stream_t& {
 		if (chunk.empty()) {
 			SRW_LOG(*logger_, DNET_LOG_DEBUG, app_, "%s: stream: got chunk from app, size 0 -- 'drop me' signal", signature_);
 			client_->finish();
@@ -382,7 +383,7 @@ public:
 		return *this;
 	}
 
-	virtual void error(const std::error_code& code, const std::string& reason) {
+	virtual auto error(cocaine::hpack::header_storage_t, const std::error_code& code, const std::string& reason) -> void {
 		SRW_LOG(*logger_, DNET_LOG_ERROR, app_, "%s: stream: got error from app in no-reply-expected mode, %s: (%d) %s", signature_, reason, code.value(), code.message());
 		if (client_) {
 			client_->finish(code.value());
@@ -393,7 +394,7 @@ public:
 		}
 	}
 
-	virtual void close() {
+	virtual auto close(cocaine::hpack::header_storage_t) -> void {
 		SRW_LOG(*logger_, DNET_LOG_DEBUG, app_, "%s: stream: got close", signature_);
 		if (client_) {
 			client_->finish();
@@ -766,7 +767,7 @@ public:
 					return -ENOENT;
 				}
 
-				std::shared_ptr<cocaine::overseer_t> app_overseer;
+				std::shared_ptr<cocaine::service::node::overseer_t> app_overseer;
 				try {
 					app_overseer = node.get().overseer(app);
 
@@ -838,14 +839,17 @@ public:
 
 					auto send_stream = app_overseer->enqueue(
 						back_stream,
-						cocaine::app::event_t(event),
+						cocaine::service::node::app::event_t(
+							event,
+							cocaine::hpack::header_storage_t()
+						),
 						cocaine::service::node::slave::id_t(tag)
 					);
 
-					send_stream->write(chunk);
+					send_stream->write(cocaine::hpack::header_storage_t(), chunk);
 
 					// Request stream should be closed after all data was sent to prevent resource leakage.
-					send_stream->close();
+					send_stream->close(cocaine::hpack::header_storage_t());
 
 					dnet_log(m_node, DNET_LOG_INFO, "%s: srw: enqueued, src_key %d, job %d, payload size %zd, block %d",
 						signature.c_str(),
