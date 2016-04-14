@@ -417,7 +417,7 @@ class srw
 	struct dnet_node   *m_node;
 
 	// main cocaine core object -- context
-	cocaine::context_t  m_ctx;
+	std::unique_ptr<cocaine::context_t>  m_ctx;
 
 	// exec session map
 	typedef std::map<uint64_t, std::shared_ptr<exec_session>> jobs_map_t;
@@ -524,7 +524,8 @@ public:
 	srw(struct dnet_node *n, const std::string &config)
 		: m_node(n)
 		//NOTE: context_t ctor throws an exception on config parse error
-		, m_ctx(config, std::make_unique<logger_adapter>(m_node))
+		, m_ctx(cocaine::get_context(cocaine::make_config(config), 
+                                             std::make_unique<logger_adapter>(m_node)))
 	{
 		atomic_set(&m_job_id_counter, 0);
 
@@ -540,11 +541,11 @@ public:
 			auto reactor = std::make_shared<asio::io_service>();
 			std::unique_ptr<cocaine::api::service_t> service(
 				new ioremap::elliptics::localnode(
-					m_ctx, *reactor, "localnode", cocaine::dynamic_t(), m_node
+					*m_ctx, *reactor, "localnode", cocaine::dynamic_t(), m_node
 				)
 			);
-			m_ctx.insert("localnode", std::make_unique<cocaine::actor_t>(
-				m_ctx,
+			m_ctx->insert("localnode", std::make_unique<cocaine::actor_t>(
+				*m_ctx,
 				reactor,
 				std::move(service)
 			));
@@ -563,7 +564,7 @@ public:
 	~srw()
 	{
 		// manually inserted services require manual removal
-		m_ctx.remove("localnode");
+		m_ctx->remove("localnode");
 	}
 
 	int process(struct dnet_net_state *st, struct dnet_cmd *cmd, const void *data)
@@ -662,7 +663,7 @@ public:
 			//XXX: how we can differentiate services from apps?
 
 			//XXX: can we detect node service name automatically?
-			if (auto node = lookup_node_service(m_ctx)) {
+			if (auto node = lookup_node_service(*m_ctx)) {
 				try {
 					if (event == "info") {
 						auto doc = node.get().info(app,
@@ -761,7 +762,7 @@ public:
 				//
 				dnet_log(m_node, DNET_LOG_INFO, "%s: srw: forward pass", signature.c_str());
 
-				auto node = lookup_node_service(m_ctx);
+				auto node = lookup_node_service(*m_ctx);
 				if (!node) {
 					dnet_log(m_node, DNET_LOG_ERROR, "%s: 'node' ('node::v2') service not found, but its required to be able to run user apps; check cocaine config", signature.c_str());
 					return -ENOENT;
