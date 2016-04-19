@@ -111,7 +111,7 @@ void upload_application(int locator_port, const std::string &app_name, const std
             packer << std::string("isolate");
             packer.pack_map(2);
             {
-                packer << std::string("type") << std::string("process");
+                packer << std::string("type") << std::string("legacy_process");
                 packer << std::string("args");
                 packer.pack_map(1);
                 {

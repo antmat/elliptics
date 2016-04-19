@@ -844,7 +844,8 @@ public:
 							event,
 							cocaine::hpack::header_storage_t()
 						),
-						cocaine::service::node::slave::id_t(tag)
+						boost::none
+						//cocaine::service::node::slave::id_t(tag)
 					);
 
 					send_stream->write(cocaine::hpack::header_storage_t(), chunk);
